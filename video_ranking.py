@@ -48,7 +48,7 @@ def rank_videos(videos, item, file_metadata):
         if cached_files:
             filepath = cached_files[0]
         else:
-            filepath = download_audio_file(v['id'])
+            filepath = download_audio_file(v['id'], './tmp/audio', './tmp/video')
         if filepath:
             acoustid_matches = acoustid.match(ACOUSTID_API_KEY, filepath, parse=False)
             if 'results' in acoustid_matches:
