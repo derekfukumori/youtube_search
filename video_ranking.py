@@ -1,10 +1,4 @@
-#import fuzzywuzzy
-from youtube_download import download_audio_file
-#from pytube import YouTube
-from iametadata import get_acoustid
-from defaults import *
-import acoustid
-import glob
+import fuzzywuzzy
 
 def cull_videos(videos, file_metadata):
     videos = [v for v in videos if in_duration_range(v, file_metadata)]

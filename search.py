@@ -2,15 +2,15 @@ import argparse
 import sys
 import json
 import os
+import glob
+import requests.exceptions
+from urllib.parse import unquote
 import iametadata as ia
 from youtube_search import YouTubeSearchManager
 from video_ranking import *
 from internetarchive import get_item
-#import json
-from urllib.parse import unquote
-import requests.exceptions
 from defaults import *
-import glob
+
 
 #TODO: Construct formatted queries.
 def search_by_file_metadata(youtube, item, file_metadata):
