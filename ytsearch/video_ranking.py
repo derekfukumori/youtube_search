@@ -6,7 +6,8 @@ def cull_videos(videos, file_metadata):
     return videos
 
 def rank_videos(videos, item, file_metadata):
-    #TODO: Examine effectiveness of old scheme.
+    #TODO: Old ranking seemed to make things worse somehow -- revisit.
+    videos = cull_videos(videos, file_metadata)
     return videos
 
 def in_duration_range(video, file_metadata, duration_range=10):

@@ -1,11 +1,9 @@
-import pytube
 import sys
-import glob
 import subprocess
 from os import remove
 from os.path import exists, isfile
+import pytube
 import audioread
-import time
 
 #TODO: retries (retrying library?).
 def download_audio_file(yt_id, audio_dir, video_dir):

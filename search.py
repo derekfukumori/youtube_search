@@ -5,26 +5,39 @@ import os
 import glob
 import requests.exceptions
 from urllib.parse import unquote
-import iametadata as ia
-from youtube_search import YouTubeSearchManager
-from video_ranking import *
+import acoustid
 from internetarchive import get_item
+import ytsearch.iametadata as ia
+from ytsearch.acoustid_search import YouTubeAcoustidManager
+from ytsearch.youtube_search import YouTubeSearchManager
+from ytsearch.video_ranking import rank_videos
 from defaults import *
 
-
-#TODO: Construct formatted queries.
-def search_by_file_metadata(youtube, item, file_metadata):
+#TODO: Multiple formatted queries.
+def search_by_file_metadata(yt, ac, item, file_metadata):
+    acoustid_id = ia.get_acoustid(file_metadata)
+    if not acoustid_id:
+        print('\tFile \'' + file_metadata['name'] + '\' has no associated acoustid')
+        return '0'
     print('\tSearching file \'' + file_metadata['name'] + '\'...')
     query = file_metadata['artist'] + " " + file_metadata['title']
-    return match_by_acoustid(youtube.search(query), item, file_metadata)
+    videos = rank_videos(yt.search(query), item, file_metadata)
+    for v in videos:
+        print('\t\tRunning acoustid match on \'' + v['id'] + '\' (\''\
+              + v['title'] + '\')...')
+        if ac.match(v['id'], acoustid_id):
+            print('\t\tMatch')
+            return v['id']
+    print('\t\tNo match')
+    return '0'
 
-def search_by_filename(youtube, item, filename):
-    return search_by_file_metadata(youtube, item, ia.get_file_metadata(item, filename))
+def search_by_filename(yt, ac, item, filename):
+    return search_by_file_metadata(yt, ac, item, ia.get_file_metadata(item, filename))
 
-def search_by_item(youtube, item):
+def search_by_item(yt, ac, item):
     results = {}
     for fm in ia.get_original_audio_files(item):
-        results[fm['name']] = search_by_file_metadata(youtube, item, fm)
+        results[fm['name']] = search_by_file_metadata(yt, ac, item, fm)
     return results
 
 #TODO: acoustid API key as argument.
@@ -78,6 +91,9 @@ if __name__ == "__main__":
     parser.add_argument('-ymax', '--max_youtube_results', dest='max_youtube_results',
             metavar='MAX_YOUTUBE_RESULTS', type=int, default=MAX_YOUTUBE_RESULTS,
             help='Maximum number of video results returned for a YouTube query')
+    parser.add_argument('-cac', '--clear_audio_cache', dest='clear_audio_cache',
+            action='store_true', default=False, help='Remove downloaded audio \
+            files after fingerprint comparison')
     parser.add_argument('-r', '--userange', dest='use_range',
             action='store_true', default=False)
     parser.add_argument('-rs', '--rangestart', dest='range_start', metavar='RANGESTART',
@@ -103,6 +119,8 @@ if __name__ == "__main__":
                               max_results=args.max_youtube_results,
                               use_cache=args.use_youtube_cache,
                               cache_path=args.youtube_cache_path)
+    ac = YouTubeAcoustidManager(args.acoustid_api_key, AUDIO_CACHE_DIR, VIDEO_CACHE_DIR,
+                                clear_cache=args.clear_audio_cache)
     yt_results = {}
 
     rs = args.range_start if args.use_range else 0
@@ -132,9 +150,9 @@ if __name__ == "__main__":
 
         if args.search_by_filename:
             filename = unquote(filename_url)
-            yt_results[iaid][filename] = search_by_filename(yt, ia_item, filename)
+            yt_results[iaid][filename] = search_by_filename(yt, ac, ia_item, filename)
         else:
-            yt_results[iaid] = search_by_item(yt, ia_item)
+            yt_results[iaid] = search_by_item(yt, ac, ia_item)
 
     try:
         with open(args.output_file, 'w') as f:
