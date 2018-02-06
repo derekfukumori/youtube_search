@@ -7,7 +7,7 @@ import os.path
 
 audio_extensions = ['.mp3', '.flac', '.ogg']
 
-def get_audio_files(item):
+def get_original_audio_files(item):
     return [f for f in item.item_metadata['files'] if f['source'] == 'original'\
             and os.path.splitext(f['name'])[1] in audio_extensions]
 
