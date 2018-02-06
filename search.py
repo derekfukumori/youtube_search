@@ -27,6 +27,7 @@ def search_by_item(youtube, item):
         results[fm['name']] = search_by_file_metadata(youtube, item, fm)
     return results
 
+#TODO: acoustid API key as argument.
 def match_by_acoustid(videos, item, file_metadata):
     acoustid_id = ia.get_acoustid(file_metadata)
     if not acoustid_id:
@@ -65,6 +66,10 @@ if __name__ == "__main__":
     parser.add_argument('-sf', '--searchbyfilename', dest='search_by_filename',
             action='store_true', default=False, help='Search using an input \
             CSV of identifier/file URL pairs')
+    parser.add_argument('-gk', '--google_api_key', dest='google_api_key',
+            metavar='GOOGLE_API_KEY', default=GOOGLE_API_KEY, help='Google API key')
+    parser.add_argument('-ak', '--acoustid_api_key', dest='acoustid_api_key',
+            metavar='ACOUSTID_API_KEY', default=ACOUSTID_API_KEY, help='Acoustid API key')
     parser.add_argument('-yc', '--use_youtube_cache', dest='use_youtube_cache',
             action='store_true', default=False, help='Use YouTube search cache')
     parser.add_argument('-ycpath', '--youtube_cache_path', dest='youtube_cache_path',
@@ -94,7 +99,8 @@ if __name__ == "__main__":
         exit(1)
 
     #TODO: Results cache as argument
-    yt = YouTubeSearchManager(GOOGLE_API_KEY, max_results=args.max_youtube_results,
+    yt = YouTubeSearchManager(args.google_api_key,
+                              max_results=args.max_youtube_results,
                               use_cache=args.use_youtube_cache,
                               cache_path=args.youtube_cache_path)
     yt_results = {}
