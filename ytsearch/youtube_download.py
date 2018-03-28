@@ -42,7 +42,7 @@ def download_audio_file(yt_id, audio_dir, video_dir):
         stream.download(video_dir, yt_id)
         video_path = video_dir.rstrip('/') + '/' + yt_id + '.' \
                      + get_stream_extension(stream)
-        audio_path =  audio_dir.rstrip('/') + '/' + yt_id + '.mp4'
+        audio_path =  audio_dir.rstrip('/') + '/' + yt_id + '.' + get_stream_extension(stream)
         try:
             subprocess.run(['ffmpeg', '-i', video_path, '-vn', '-y', '-acodec', 'copy', \
             audio_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -61,12 +61,16 @@ def get_stream_extension(stream):
     return stream.mime_type.split('/')[1]
 
 def is_audio_valid(path):
-    try:
-        with audioread.audio_open(path) as f:
-            pass
-    except audioread.DecodeError:
-        remove(path)
-        return False
-    except FileNotFoundError:
-        return False
+    # try:
+    #     print('opening audio file' + path)
+    #     with audioread.audio_open(path) as f:
+    #         print('audio opened')
+    #         pass
+    # except audioread.DecodeError:
+    #     print('error. removing audio file')
+    #     remove(path)
+    #     return False
+    # except FileNotFoundError:
+    #     print('file not found')
+    #     return False
     return True
