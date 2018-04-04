@@ -2,6 +2,7 @@ import os
 import glob
 import acoustid
 from ytsearch.youtube_download import download_audio_file
+from ytsearch.youtube_download import download_audio_file_ytdl
 
 class YouTubeAcoustidManager:
     """Handles acoustid matching for YouTube videos.
@@ -39,8 +40,8 @@ class YouTubeAcoustidManager:
         if cached_files:
             filepath = cached_files[0]
         else:
-            filepath = download_audio_file(yt_id, self._audio_cache_dir,
-                                           self._video_cache_dir)
+            #filepath = download_audio_file(yt_id, self._audio_cache_dir, self._video_cache_dir)
+            filepath = download_audio_file_ytdl(yt_id, self._audio_cache_dir, self._video_cache_dir)
         if filepath:
             # print('\t\tRunning acoustid match on \'' + v['id'] + '\' (\''\
             #       + v['title'] + '\')...')

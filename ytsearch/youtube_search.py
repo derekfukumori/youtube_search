@@ -29,7 +29,7 @@ class YouTubeSearchManager:
                 print("Error: Could not read YouTube results cache.")
 
     #TODO: Case-insensitive query caching.
-    def search(self, query):
+    def search(self, query, duration):
         """Performs a YouTube search for the given query string.
 
         If caching is enabled, search will first attempt to return a cached copy
@@ -47,11 +47,23 @@ class YouTubeSearchManager:
         and len(self._cache[query]) >= self._max_results:
             return self._cache[query][:self._max_results]
 
+        expected_duration = "any"
+        if duration < 230:
+            expected_duration = "short"
+        elif duration > 250 and duration < 1190:
+            expected_duration = "medium"
+        elif duration > 1210:
+            expected_duration = "long"
+
         response = self._youtube.search().list(
             q = query,
             part = "id",
             maxResults = self._max_results,
-            type = "video"
+            order = "relevance",
+            type = "video",
+            safeSearch = "none",
+            topicId = "/m/04rlf",
+            videoDuration = expected_duration
         ).execute()
 
         results = []
