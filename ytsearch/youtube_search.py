@@ -47,6 +47,10 @@ class YouTubeSearchManager:
         and len(self._cache[query]) >= self._max_results:
             return self._cache[query][:self._max_results]
 
+        # Set the expected video duration.
+        # Video duration often differs slightly from file duration. If the file
+        # duration falls within ten seconds of a YouTube duration threshold,
+        # don't specify an expected duration.
         expected_duration = "any"
         if duration < 230:
             expected_duration = "short"

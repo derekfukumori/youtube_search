@@ -7,10 +7,7 @@ import pytube
 import audioread
 
 def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
-    """Downloads the audio of a YouTube video.
-
-    Prioritizes audio streams. If no audio stream is present, downloads a
-    video stream and extracts the audio with FFmpeg.
+    """Downloads the audio of a YouTube video via youtube-dl.
 
     Args:
         yt_id     (str): The YouTube video ID.
@@ -24,6 +21,8 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
 
     output_template = audio_dir.rstrip('/') + '/' +  yt_id + '.%(ext)s'
     try:
+        # TODO: It seems like youtube-dl provides an audio-only stream in cases
+        # where pytube did not. Does it always? If not, define fallback behavior.
         subprocess.run(['youtube-dl', '-q', '-o', output_template,
                        '-f', 'bestaudio', 'https://www.youtube.com/watch?v=' + yt_id],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -39,8 +38,8 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
     return ''
 
 #TODO: retries (retrying library?).
-def download_audio_file(yt_id, audio_dir, video_dir):
-    """Downloads the audio of a YouTube video.
+def download_audio_file_pytube(yt_id, audio_dir, video_dir):
+    """Downloads the audio of a YouTube video via pytube.
 
     Prioritizes audio streams. If no audio stream is present, downloads a
     video stream and extracts the audio with FFmpeg.
