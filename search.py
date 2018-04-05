@@ -60,7 +60,11 @@ if __name__=='__main__':
     results = {}
 
     for entry in args.entries:
-        iaid, filename = entry.split('/', 1)
+        if args.search_by_filename:
+            iaid, filename = entry.split('/', 1)
+        else:
+            iaid = entry
+
         item = IAItem(iaid)
 
         if not item.metadata() or 'error' in item.metadata():
