@@ -31,11 +31,11 @@ if __name__=='__main__':
             metavar='GOOGLE_API_KEY', default=GOOGLE_API_KEY, help='Google API key')
     parser.add_argument('-ak', '--acoustid_api_key', dest='acoustid_api_key',
             metavar='ACOUSTID_API_KEY', default=ACOUSTID_API_KEY, help='Acoustid API key')
-    parser.add_argument('-yc', '--use_youtube_cache', dest='use_youtube_cache',
-            action='store_true', default=False, help='Use YouTube search cache')
-    parser.add_argument('-ycp', '--youtube_cache_path', dest='youtube_cache_path',
-            metavar = 'YOUTUBE_CACHE_PATH', default=YOUTUBE_CACHE_PATH,
-            help='Path to YouTube search cache file')
+    # parser.add_argument('-yc', '--use_youtube_cache', dest='use_youtube_cache',
+    #         action='store_true', default=False, help='Use YouTube search cache')
+    # parser.add_argument('-ycp', '--youtube_cache_path', dest='youtube_cache_path',
+    #         metavar = 'YOUTUBE_CACHE_PATH', default=YOUTUBE_CACHE_PATH,
+    #         help='Path to YouTube search cache file')
     parser.add_argument('-ymax', '--max_youtube_results', dest='max_youtube_results',
             metavar='MAX_YOUTUBE_RESULTS', type=int, default=MAX_YOUTUBE_RESULTS,
             help='Maximum number of video results returned for a YouTube query')
@@ -47,8 +47,9 @@ if __name__=='__main__':
 
     yt = YouTubeSearchManager(args.google_api_key,
                               max_results=args.max_youtube_results,
-                              use_cache=args.use_youtube_cache,
-                              cache_path=args.youtube_cache_path)
+                              use_cache=False)
+                              #use_cache=args.use_youtube_cache,
+                              #cache_path=args.youtube_cache_path)
 
     ac = YouTubeAcoustidManager(args.acoustid_api_key,
                                 AUDIO_CACHE_DIR,
