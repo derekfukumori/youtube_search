@@ -1,10 +1,6 @@
 import internetarchive
 import os.path
 
-# def get_ia_metadata(item_id):
-#     print("ffff")
-#     return internetarchive.get_item(item_id)
-
 audio_extensions = ['.mp3', '.flac', '.ogg']
 
 class IATrack:

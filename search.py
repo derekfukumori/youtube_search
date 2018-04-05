@@ -1,4 +1,5 @@
 import argparse
+import sys
 from urllib.parse import unquote
 from ytsearch.iametadata import IAItem
 from ytsearch.youtube_search import YouTubeSearchManager
@@ -61,6 +62,13 @@ if __name__=='__main__':
     for entry in args.entries:
         iaid, filename = entry.split('/', 1)
         item = IAItem(iaid)
+
+        if not item.metadata() or 'error' in item.metadata():
+            print("Error: Could not retrieve metadata for item "  + iaid,
+                  file = sys.stderr)
+            # TODO: Error codes?
+            sys.exit(1)
+
         results[iaid] = {}
 
         if args.search_by_filename:

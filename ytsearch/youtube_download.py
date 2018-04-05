@@ -92,6 +92,8 @@ def download_audio_file_pytube(yt_id, audio_dir, video_dir):
 def get_stream_extension(stream):
     return stream.mime_type.split('/')[1]
 
+# TODO: audioread doesn't play nicely with vorbis-encoded files. Determine a
+# better way to validate files.
 def is_audio_valid(path):
     # try:
     #     print('opening audio file' + path)
