@@ -1,4 +1,4 @@
-GOOGLE_API_KEY = 'AIzaSyBZhiI5trjy4ZFysrYD54_E9sDMR3aKfpo'
+GOOGLE_API_KEY = 'AIzaSyB9ABi0XgOJRsVM0nOLzQaXAHUYxxJzNCk'
 ACOUSTID_API_KEY = 'TSBDiPl0Ax'
 IDENTIFIERS_FILE = 'data/wcd-rando-1000-identifiers.csv'
 OUTPUT_FILE = 'data/wcd-rando-1000-results.json'

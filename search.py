@@ -1,81 +1,29 @@
 import argparse
-import sys
-import json
-import os
-import glob
-import requests.exceptions
 from urllib.parse import unquote
-import acoustid
-from internetarchive import get_item
-import ytsearch.iametadata as ia
-from ytsearch.acoustid_search import YouTubeAcoustidManager
+from ytsearch.iametadata import IAItem
 from ytsearch.youtube_search import YouTubeSearchManager
+from ytsearch.acoustid_search import YouTubeAcoustidManager
 from ytsearch.video_ranking import rank_videos
 from defaults import *
 
-#TODO: Multiple formatted queries.
-def search_by_file_metadata(yt, ac, item, file_metadata):
-    acoustid_id = ia.get_acoustid(file_metadata)
-    if not acoustid_id:
-        print('\tFile \'' + file_metadata['name'] + '\' has no associated acoustid')
-        return '0'
-    print('\tSearching file \'' + file_metadata['name'] + '\'...')
-    query = file_metadata['artist'] + " " + file_metadata['title']
-    videos = rank_videos(yt.search(query), item, file_metadata)
-    for v in videos:
-        print('\t\tRunning acoustid match on \'' + v['id'] + '\' (\''\
-              + v['title'] + '\')...')
-        if ac.match(v['id'], acoustid_id):
-            print('\t\tMatch')
-            return v['id']
-    print('\t\tNo match')
-    return '0'
+def search_by_track(yt, track):
+    if not track.acoustid:
+        return ''
+    # TODO: Refine queries.
+    query = track.artist + " " + track.title
+    return yt.search(query, track.length)
+    return []
 
-def search_by_filename(yt, ac, item, filename):
-    return search_by_file_metadata(yt, ac, item, ia.get_file_metadata(item, filename))
-
-def search_by_item(yt, ac, item):
+def search_by_item(yt, item):
     results = {}
-    for fm in ia.get_original_audio_files(item):
-        results[fm['name']] = search_by_file_metadata(yt, ac, item, fm)
+    for name in item.tracks:
+        results[name] = search_by_track(yt, item.tracks[name])
     return results
 
-#TODO: acoustid API key as argument.
-def match_by_acoustid(videos, item, file_metadata):
-    acoustid_id = ia.get_acoustid(file_metadata)
-    if not acoustid_id:
-        return '0'
-
-    #Cull the YouTube search list (currently by duration only)
-    videos = cull_videos(videos, file_metadata)
-    #TODO: Rework ranking
-    #videos = rank_videos(videos, item, file_metadata)
-
-    for v in videos:
-        cached_files = glob.glob(AUDIO_CACHE_DIR.rstrip('/') + '/' + v['id'] + '.*')
-        if cached_files:
-            filepath = cached_files[0]
-        else:
-            filepath = download_audio_file(v['id'], AUDIO_CACHE_DIR, VIDEO_CACHE_DIR)
-        if filepath:
-            print('\t\tRunning acoustid match on \'' + v['id'] + '\' (\''\
-                  + v['title'] + '\')...')
-            acoustid_matches = acoustid.match(ACOUSTID_API_KEY, filepath, parse=False)
-            if 'results' in acoustid_matches:
-                for match in acoustid_matches['results']:
-                    print('\t\t\t' + match['id'])
-                    if match['id'] == acoustid_id:
-                        print('\t\t\tMatch found')
-                        return v['id']
-    return '0'
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Fetch and JSONify file\
-            metadata from [identifier,filepath] CSV file')
-    parser.add_argument('-i', '--input', dest='input_file', metavar='INPUTFILE',
-            default=IDENTIFIERS_FILE, help='Input CSV file')
-    parser.add_argument('-o', '--output', dest='output_file', metavar='OUTPUTFILE',
-            default=OUTPUT_FILE, help='Output JSON file')
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('entries', metavar='ENTRIES', type=str, nargs='+',
+        help='Something')
     parser.add_argument('-sf', '--searchbyfilename', dest='search_by_filename',
             action='store_true', default=False, help='Search using an input \
             CSV of identifier/file URL pairs')
@@ -85,7 +33,7 @@ if __name__ == "__main__":
             metavar='ACOUSTID_API_KEY', default=ACOUSTID_API_KEY, help='Acoustid API key')
     parser.add_argument('-yc', '--use_youtube_cache', dest='use_youtube_cache',
             action='store_true', default=False, help='Use YouTube search cache')
-    parser.add_argument('-ycpath', '--youtube_cache_path', dest='youtube_cache_path',
+    parser.add_argument('-ycp', '--youtube_cache_path', dest='youtube_cache_path',
             metavar = 'YOUTUBE_CACHE_PATH', default=YOUTUBE_CACHE_PATH,
             help='Path to YouTube search cache file')
     parser.add_argument('-ymax', '--max_youtube_results', dest='max_youtube_results',
@@ -94,71 +42,39 @@ if __name__ == "__main__":
     parser.add_argument('-cac', '--clear_audio_cache', dest='clear_audio_cache',
             action='store_true', default=False, help='Remove downloaded audio \
             files after fingerprint comparison')
-    parser.add_argument('-r', '--userange', dest='use_range',
-            action='store_true', default=False)
-    parser.add_argument('-rs', '--rangestart', dest='range_start', metavar='RANGESTART',
-            type=int, default=0)
-    parser.add_argument('-re', '--rangeend', dest='range_end', metavar='RANGEEND',
-            type=int, default=0)
+
     args = parser.parse_args()
 
-    #Set up cache directories
-    os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
-    os.makedirs(VIDEO_CACHE_DIR, exist_ok=True)
-    os.makedirs(METADATA_CACHE_DIR, exist_ok=True)
-
-    try:
-        with open(args.input_file) as f:
-            items = f.readlines()
-    except IOError:
-        print("Error: Could not read input file.", file=sys.stderr)
-        exit(1)
-
-    #TODO: Results cache as argument
     yt = YouTubeSearchManager(args.google_api_key,
                               max_results=args.max_youtube_results,
                               use_cache=args.use_youtube_cache,
                               cache_path=args.youtube_cache_path)
-    ac = YouTubeAcoustidManager(args.acoustid_api_key, AUDIO_CACHE_DIR, VIDEO_CACHE_DIR,
+
+    ac = YouTubeAcoustidManager(args.acoustid_api_key,
+                                AUDIO_CACHE_DIR,
+                                VIDEO_CACHE_DIR,
                                 clear_cache=args.clear_audio_cache)
-    yt_results = {}
 
-    rs = args.range_start if args.use_range else 0
-    re = min(len(items), args.range_end + 1) if args.use_range else len(items)
+    results = {}
 
-    for i in range(rs,re):
-        iaid,filename_url = items[i].rstrip().split(',')
-
-        print('Searching item \'' + iaid + '\'...')
-
-        #TODO: Sometimes internetarchive.get_item() fails(?) without raising an
-        # exception, causing a KeyError when metadata['files'] is accessed.
-        # Determine the value of ia_item when the failure occurs, and check validity before searching.
-        try:
-            ia_item = get_item(iaid)
-        except requests.exceptions.ConnectionError:
-            print('Error: Could not connect to Internet Archive.', file=sys.stderr)
-            continue
-
-        if not ia_item.item_metadata:
-            print('Error: Internet Archive returned no metadata for item \'' + iaid
-                  + '\'.', file=sys.stderr)
-            continue
-
-        if iaid not in yt_results:
-            yt_results[iaid] = {}
+    for entry in args.entries:
+        iaid, filename = entry.split('/', 1)
+        item = IAItem(iaid)
+        results[iaid] = {}
 
         if args.search_by_filename:
-            filename = unquote(filename_url)
-            yt_results[iaid][filename] = search_by_filename(yt, ac, ia_item, filename)
+            filename = unquote(filename)
+            yt_results = {filename: search_by_track(yt, item.tracks[filename])}
         else:
-            yt_results[iaid] = search_by_item(yt, ac, ia_item)
+            yt_results = search_by_item(yt, item)
 
-    try:
-        with open(args.output_file, 'w') as f:
-            json.dump(yt_results, f)
-    except IOError:
-        print("Error: Could not write to output file.", file=sys.stderr)
+        for name in yt_results:
+            results[iaid][name] = ''
 
-    if args.use_youtube_cache:
-        yt.write_cache_to_disk()
+            videos = rank_videos(yt_results[name], item.tracks[name])
+            for v in videos:
+                if ac.match(v['id'], item.tracks[name].acoustid):
+                    results[iaid][name] = v['id']
+                    break
+
+    print(results)

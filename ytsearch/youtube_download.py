@@ -1,13 +1,45 @@
 import sys
+import glob
 import subprocess
 from os import remove
 from os.path import exists, isfile
 import pytube
 import audioread
 
+def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
+    """Downloads the audio of a YouTube video via youtube-dl.
+
+    Args:
+        yt_id     (str): The YouTube video ID.
+        audio_dir (str): Download location for audio streams.
+        video_dir (str): Download location for video streams.
+
+    Returns:
+        The path of the downloaded file, or a blank stream on unsuccessful
+        download or FFmpeg conversion.
+    """
+
+    output_template = audio_dir.rstrip('/') + '/' +  yt_id + '.%(ext)s'
+    try:
+        # TODO: It seems like youtube-dl provides an audio-only stream in cases
+        # where pytube did not. Does it always? If not, define fallback behavior.
+        subprocess.run(['youtube-dl', '-q', '-o', output_template,
+                       '-f', 'bestaudio', 'https://www.youtube.com/watch?v=' + yt_id],
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError:
+        pass
+    finally:
+        pass
+
+    dl_files = glob.glob(audio_dir.rstrip('/') + '/' +  yt_id + '.*')
+    if dl_files:
+        return dl_files[0]
+
+    return ''
+
 #TODO: retries (retrying library?).
-def download_audio_file(yt_id, audio_dir, video_dir):
-    """Downloads the audio of a YouTube video.
+def download_audio_file_pytube(yt_id, audio_dir, video_dir):
+    """Downloads the audio of a YouTube video via pytube.
 
     Prioritizes audio streams. If no audio stream is present, downloads a
     video stream and extracts the audio with FFmpeg.
@@ -42,7 +74,7 @@ def download_audio_file(yt_id, audio_dir, video_dir):
         stream.download(video_dir, yt_id)
         video_path = video_dir.rstrip('/') + '/' + yt_id + '.' \
                      + get_stream_extension(stream)
-        audio_path =  audio_dir.rstrip('/') + '/' + yt_id + '.mp4'
+        audio_path =  audio_dir.rstrip('/') + '/' + yt_id + '.' + get_stream_extension(stream)
         try:
             subprocess.run(['ffmpeg', '-i', video_path, '-vn', '-y', '-acodec', 'copy', \
             audio_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -61,12 +93,16 @@ def get_stream_extension(stream):
     return stream.mime_type.split('/')[1]
 
 def is_audio_valid(path):
-    try:
-        with audioread.audio_open(path) as f:
-            pass
-    except audioread.DecodeError:
-        remove(path)
-        return False
-    except FileNotFoundError:
-        return False
+    # try:
+    #     print('opening audio file' + path)
+    #     with audioread.audio_open(path) as f:
+    #         print('audio opened')
+    #         pass
+    # except audioread.DecodeError:
+    #     print('error. removing audio file')
+    #     remove(path)
+    #     return False
+    # except FileNotFoundError:
+    #     print('file not found')
+    #     return False
     return True
