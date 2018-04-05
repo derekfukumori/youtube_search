@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import acoustid
 from ytsearch.youtube_download import download_audio_file_ytdl as download_audio_file
@@ -41,7 +42,13 @@ class YouTubeAcoustidManager:
         else:
             filepath = download_audio_file(yt_id, self._audio_cache_dir, self._video_cache_dir)
         if filepath:
-            matches = acoustid.match(self._api_key, filepath, parse=False)
+            try:
+                matches = acoustid.match(self._api_key, filepath, parse=False)
+            except acoustid.FingerprintGenerationError:
+                print("Could not calculate fingerprint for " + filepath,
+                      file = sys.stderr)
+                # TODO: Error codes?
+                sys.exit(1)
             if self._clear_cache:
                 os.remove(filepath)
             if 'results' in matches:

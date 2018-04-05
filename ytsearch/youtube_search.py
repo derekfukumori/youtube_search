@@ -26,7 +26,8 @@ class YouTubeSearchManager:
                 with open(self._cache_path) as f:
                     self._cache = json.load(f)
             except (IOError, json.decoder.JSONDecodeError) as e:
-                print("Error: Could not read YouTube results cache.")
+                print("Error: Could not read YouTube results cache.",
+                      file = sys.stderr)
 
     #TODO: Case-insensitive query caching.
     def search(self, query, duration):
