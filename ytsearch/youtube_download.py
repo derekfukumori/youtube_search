@@ -23,7 +23,7 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
     try:
         # TODO: It seems like youtube-dl provides an audio-only stream in cases
         # where pytube did not. Does it always? If not, define fallback behavior.
-        subprocess.run(['youtube-dl', '-q', '-o', output_template,
+        subprocess.run(['youtube-dl', '--prefer-ffmpeg','--no-check-certificate', '-q', '-o', output_template,
                        '-f', 'bestaudio', 'https://www.youtube.com/watch?v=' + yt_id],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     except subprocess.CalledProcessError:
