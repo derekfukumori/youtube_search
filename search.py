@@ -1,10 +1,13 @@
 import argparse
 import sys
+import os.path
 from urllib.parse import unquote
 from ytsearch.iametadata import IAItem
 from ytsearch.youtube_search import YouTubeSearchManager
 from ytsearch.acoustid_search import YouTubeAcoustidManager
 from ytsearch.video_ranking import rank_videos
+from ytsearch.youtube_download import download_audio_file_ytdl
+import audiofp.fingerprint as fp
 from defaults import *
 
 def search_by_track(yt, track):
@@ -61,7 +64,7 @@ if __name__=='__main__':
 
     for entry in args.entries:
         if args.search_by_filename:
-            iaid, filename = entry.split('/', 1)
+            iaid, filename_url = entry.split('/', 1)
         else:
             iaid = entry
 
@@ -76,7 +79,7 @@ if __name__=='__main__':
         results[iaid] = {}
 
         if args.search_by_filename:
-            filename = unquote(filename)
+            filename = unquote(filename_url)
             yt_results = {filename: search_by_track(yt, item.tracks[filename])}
         else:
             yt_results = search_by_item(yt, item)
@@ -84,10 +87,33 @@ if __name__=='__main__':
         for name in yt_results:
             results[iaid][name] = ''
 
+            #print('Matching ' + iaid + '/' + name, file=sys.stderr)
+
             videos = rank_videos(yt_results[name], item.tracks[name])
+
+            if videos:
+                errors = item.item.download(silent=True, files=[name], destdir='tmp/iaaudio')
+                if errors:
+                    #TODO: Error message, exit code
+                    exit(1)
+                dst_path = 'tmp/iaaudio/' + iaid + '/' + name
+                src_fp = fp.generate_fingerprint(dst_path)
+
+
             for v in videos:
-                if ac.match(v['id'], item.tracks[name].acoustid):
+
+                #print('  '+v['id'], file=sys.stderr)
+
+
+                dl_path = download_audio_file_ytdl(v['id'], AUDIO_CACHE_DIR, VIDEO_CACHE_DIR)
+                vid_fp = fp.generate_fingerprint(dl_path)
+
+                if fp.match_fingerprints(src_fp, vid_fp):
                     results[iaid][name] = v['id']
                     break
+                # if ac.match(v['id'], item.tracks[name].acoustid):
+                #     results[iaid][name] = v['id']
+                #     break
 
     print(results)
+    #print("", file=sys.stderr)

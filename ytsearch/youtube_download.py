@@ -19,7 +19,14 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
         download or FFmpeg conversion.
     """
 
-    output_template = audio_dir.rstrip('/') + '/' +  yt_id + '.%(ext)s'
+    path_no_ext = audio_dir.rstrip('/') + '/' +  yt_id
+
+    # Return cached file
+    cached_files = glob.glob(path_no_ext + '.*')
+    if cached_files:
+        return cached_files[0]
+
+    output_template = path_no_ext + '.%(ext)s'
     try:
         # TODO: It seems like youtube-dl provides an audio-only stream in cases
         # where pytube did not. Does it always? If not, define fallback behavior.
@@ -31,7 +38,7 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
     finally:
         pass
 
-    dl_files = glob.glob(audio_dir.rstrip('/') + '/' +  yt_id + '.*')
+    dl_files = glob.glob(path_no_ext + '.*')
     if dl_files:
         return dl_files[0]
 
@@ -53,6 +60,14 @@ def download_audio_file_pytube(yt_id, audio_dir, video_dir):
         The path of the downloaded file, or a blank stream on unsuccessful
         download or FFmpeg conversion.
     """
+
+    path_no_ext = audio_dir.rstrip('/') + '/' +  yt_id
+
+    # Return cached file
+    cached_files = glob.glob(path_no_ext + '.*')
+    if cached_files:
+        return cached_files[0]
+    
     try:
         yt = pytube.YouTube('https://www.youtube.com/watch?v=' + yt_id)
     except pytube.exceptions.RegexMatchError:
