@@ -17,9 +17,10 @@ def generate_fingerprint(audio_file):
 
 def match_fingerprints(fpa, fpb):
 	segments = chromaprint_compare_c.compare_fingerprints(fpa, fpb)
-	#print("    Segments: ", segments)
+	
 	match_score = 0.0
 	for s in segments:
 		match_score += (1000 - s['score'])/1000 * s['duration']/len(fpa)
 	#print("    Score:", match_score, '; Segments:', segments, file=sys.stderr)
+	print("      Score: ", match_score, "\tSegments: ", segments, file=sys.stderr)
 	return match_score > 0.3
