@@ -1,5 +1,6 @@
 import subprocess
 import re
+import sys
 
 def create_database(reference_file, db_name='', db_dir='tmp/fingerprint'):
 
