@@ -34,7 +34,7 @@ class IAItem:
         self.tracks = dict((md['name'], IATrack(md)) for md in self.item.files
                       if md['source'] == 'original'
                       and os.path.splitext(md['name'])[1] in audio_extensions)
-        self.album = self.tracks[0].album
+        self.album = list(self.tracks.values())[0].album
         self.length = 0
         for track in self.tracks.values():
             self.length += track.length
