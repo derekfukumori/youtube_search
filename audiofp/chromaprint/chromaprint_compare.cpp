@@ -37,6 +37,8 @@ chromaprint_compare_fingerprints(PyObject *self, PyObject *args) {
 	for (chromaprint::Segment s : fpm->segments()) {
 		PyObject *segment_dict_py = PyDict_New();
 
+		PyDict_SetItemString(segment_dict_py, "pos1", PyLong_FromUnsignedLong(s.pos1));
+		PyDict_SetItemString(segment_dict_py, "pos2", PyLong_FromUnsignedLong(s.pos2));
 		PyDict_SetItemString(segment_dict_py, "duration", PyLong_FromUnsignedLong(s.duration));
 		PyDict_SetItemString(segment_dict_py, "score", PyLong_FromLong(s.public_score()));
 

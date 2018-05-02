@@ -11,6 +11,7 @@ class IATrack:
         self.artist = metadata['artist']
         self.album = metadata['album']
         self.length = float(metadata['length'])
+        self.track_ordering = int(metadata['track']) if 'track' in metadata else self.name
         self.acoustid = ''
         if 'external-identifier' in metadata:
             if isinstance(metadata['external-identifier'], str):
@@ -27,9 +28,14 @@ class IATrack:
 class IAItem:
     def __init__(self, iaid):
         self.item = internetarchive.get_item(iaid)
+        self.artist = self.item.item_metadata['metadata']['artist']
+        self.album = self.item.item_metadata['metadata']['album']
         self.tracks = dict((md['name'], IATrack(md)) for md in self.item.files
                       if md['source'] == 'original'
                       and os.path.splitext(md['name'])[1] in audio_extensions)
+        self.length = 0
+        for track in self.tracks.values():
+            self.length += track.length
     def metadata(self):
         return self.item.item_metadata
 
