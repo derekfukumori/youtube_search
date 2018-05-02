@@ -162,6 +162,7 @@ if __name__=='__main__':
         if not results[iaid]:
             tracks = [unquote(filename_url)] if args.search_by_filename else item.tracks.keys()
             for filename in tracks:
+                results[iaid][filename] = ''
                 yt_results = search_by_track(yt, item.tracks[filename])
                 if yt_results:
                     dl_path = ia_download_file(item, filename)
