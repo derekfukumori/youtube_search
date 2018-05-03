@@ -15,7 +15,8 @@ from defaults import *
 
 def ia_download_file(item, filename, dst_dir='tmp/iaaudio'):
     path = dst_dir.rstrip('/') + '/' + item.item.identifier + '/' + filename
-    cached_files = glob.glob(path)
+    #cached_files = glob.glob(path)
+    cached_files = []
     if not cached_files:
         errors = item.item.download(silent=True, files=[filename], destdir=dst_dir)
         if errors:
