@@ -48,7 +48,7 @@ def search_by_album(yt, item):
 
 def match_full_album(yt, item, clear_cache=False):
     results = {}
-    ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.track_ordering)
+    ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.ordinal)
     yt_results = search_by_album(yt, item)
     for v in yt_results:
         matches = {}
@@ -68,6 +68,7 @@ def match_full_album(yt, item, clear_cache=False):
         # If at least half of the item's tracks produce a match, consider this a
         # successful full-album match.
         if sum(bool(match) for match in matches.values())/len(item.tracks) >= 0.5:
+            f = [t.ordinal for t in ordered_tracks]
             time_offsets = {}
             first_match = matches[ordered_tracks[0].name]
             time_offsets[ordered_tracks[0].name] = first_match.offset if first_match else 0
@@ -152,8 +153,7 @@ if __name__=='__main__':
 
         results[iaid] = {}
 
-
-        
+        ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.ordinal)
 
         if args.search_full_album:
             results[iaid] = match_full_album(yt, item, clear_cache=args.clear_audio_cache)

@@ -1,7 +1,25 @@
 import internetarchive
 import os.path
+import re
 
-audio_extensions = ['.mp3', '.flac', '.ogg']
+audio_extensions = ['.mp3', '.flac', '.ogg', '.m4a']
+
+
+def get_track_ordinal(track_md):
+    ordinal = track_md['track'] if 'track' in track_md else track_md['name']
+    ordinal = re.sub('[^0-9]+', '', ordinal)
+    return int(ordinal) if ordinal else 0
+
+def get_item_artist(item_md):
+    artist = ''
+    if 'artist' in item_md:
+        artist = item_md['artist']
+    elif 'creator' in item_md:
+        if isinstance(item_md['creator'], str):
+            artist = item_md['creator']
+        else:
+            artist = item_md['creator'][0]
+    return artist
 
 class IATrack:
     def __init__(self, metadata):
@@ -11,7 +29,7 @@ class IATrack:
         self.artist = metadata['artist']
         self.album = metadata['album']
         self.length = float(metadata['length'])
-        self.track_ordering = metadata['track'] if 'track' in metadata else self.name
+        self.ordinal = get_track_ordinal(metadata)
         self.acoustid = ''
         if 'external-identifier' in metadata:
             if isinstance(metadata['external-identifier'], str):
@@ -28,9 +46,7 @@ class IATrack:
 class IAItem:
     def __init__(self, iaid):
         self.item = internetarchive.get_item(iaid)
-        self.artist = self.item.item_metadata['metadata']['artist']
-        # album_val = self.item.item_metadata['metadata']['album']
-        # self.album = album_val if isinstance(album_val, str) else album_val[0]
+        self.artist = get_item_artist(self.item.item_metadata['metadata'])
         self.tracks = dict((md['name'], IATrack(md)) for md in self.item.files
                       if md['source'] == 'original'
                       and os.path.splitext(md['name'])[1] in audio_extensions)
