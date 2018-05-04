@@ -13,7 +13,10 @@ def get_track_ordinal(track_md):
 def get_item_artist(item_md):
     artist = ''
     if 'artist' in item_md:
-        artist = item_md['artist']
+        if isinstance(item_md['artist'], str):
+            artist = item_md['artist']
+        else:
+            artist = item_md['artist'][0]
     elif 'creator' in item_md:
         if isinstance(item_md['creator'], str):
             artist = item_md['creator']
