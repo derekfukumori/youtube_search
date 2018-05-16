@@ -5,7 +5,7 @@ from isodate import parse_duration
 from defaults import *
 
 class YouTubeSearchManager:
-    """Handles YouTube video searches.
+    """ Handles YouTube video searches.
 
     Args:
         api_key      (str): Google API key.

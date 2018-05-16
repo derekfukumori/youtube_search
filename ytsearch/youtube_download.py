@@ -6,8 +6,8 @@ from os.path import exists, isfile
 import pytube
 import audioread
 
-def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
-    """Downloads the audio of a YouTube video via youtube-dl.
+def download_audio_file_ytdl(yt_id, audio_dir):
+    """ Downloads the audio of a YouTube video via youtube-dl.
 
     Args:
         yt_id     (str): The YouTube video ID.
@@ -19,9 +19,7 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
         download or FFmpeg conversion.
     """
 
-    path_no_ext = audio_dir.rstrip('/') + '/' +  yt_id
-
-    # Return cached file
+    path_no_ext = '{}/{}'.format(audio_dir.rstrip('/'), yt_id)
     cached_files = glob.glob(path_no_ext + '.*')
     if cached_files:
         return cached_files[0]
@@ -45,7 +43,7 @@ def download_audio_file_ytdl(yt_id, audio_dir, video_dir):
     return ''
 
 #TODO: retries (retrying library?).
-def download_audio_file_pytube(yt_id, audio_dir, video_dir):
+def download_audio_file_pytube(yt_id, audio_dir):
     """Downloads the audio of a YouTube video via pytube.
 
     Prioritizes audio streams. If no audio stream is present, downloads a
@@ -54,7 +52,6 @@ def download_audio_file_pytube(yt_id, audio_dir, video_dir):
     Args:
         yt_id     (str): The YouTube video ID.
         audio_dir (str): Download location for audio streams.
-        video_dir (str): Download location for video streams.
 
     Returns:
         The path of the downloaded file, or a blank stream on unsuccessful

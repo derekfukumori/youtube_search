@@ -28,7 +28,7 @@ def filename_to_audio_filetype(filename):
         return AudioFiletype.M4A
 
 def get_track_duration(track_md):
-    """ Get the duration of a track in seconds given the track's metadata.
+    """ Get the duration of a track in seconds, given the track's metadata.
     If no valid duration format is present, return zero.
     """
     if 'length' in track_md:
@@ -70,7 +70,8 @@ def get_item_artist(item_md):
     return artist
 
 class IATrack:
-    def __init__(self, metadata):
+    def __init__(self, iaid, metadata):
+        self.identifier = iaid
         self.metadata = metadata
         self.name = metadata['name']
         self.orig_filetype = filename_to_audio_filetype(self.name)
@@ -96,12 +97,13 @@ class IATrack:
 class IAItem:
     def __init__(self, iaid):
         self.item = internetarchive.get_item(iaid)
+        self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
-        self.tracks = dict((file_md['name'], IATrack(file_md)) for file_md in self.item.files
+        self.tracks = dict((file_md['name'], IATrack(iaid, file_md)) for file_md in self.item.files
                       if file_md['source'] == 'original'
                       and filename_to_audio_filetype(file_md['name']))
 
-        # Associate track objects with corresponding non-sample derivative audio files.
+        # Associate track objects with their non-sample derivative audio files.
         for file_md in self.item.files:
             filetype = filename_to_audio_filetype(file_md['name'])
             if filetype and file_md['source'] == 'derivative' \
