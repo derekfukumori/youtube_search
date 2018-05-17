@@ -14,45 +14,34 @@ from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 import audiofp.fingerprint as fp
 
-def ia_download_file(item, filename, dst_dir='.'):
-    path = '{}/{}/{}'.format(dst_dir.rstrip('/'),
-                             item.item.identifier,
-                             filename)
-    if not os.path.isfile(path):
-        errors = item.item.download(silent=True, files=[filename], destdir=dst_dir)
-        if errors:
-            print("Error: failed to download file", filename, file=sys.stderr)
-            return None
-    return path
-
 def search_by_track(yt, track):
     """ Query YouTube for an individual track
     """
     query = '{} {}'.format(track.artist, track.title)
-    results = yt.search(query, track.length)
-    results = videos_cull_by_duration(results, track.length, duration_range=10)
+    results = yt.search(query, track.duration)
+    results = videos_cull_by_duration(results, track.duration, duration_range=10)
     # results = videos_cull_by_keyword(results, track.title)
     return results
 
-def search_by_item(yt, item):
-    """ Query YouTube for each individual track within an album
-    """
-    results = {}
-    for name in item.tracks:
-        results[name] = search_by_track(yt, item.tracks[name])
-    return results
+# def search_by_item(yt, item):
+#     """ Query YouTube for each individual track within an album
+#     """
+#     results = {}
+#     for name in item.tracks:
+#         results[name] = search_by_track(yt, item.tracks[name])
+#     return results
 
-def search_by_album(yt, item):
+def search_by_album(yt, album):
     """ Query YouTube for full-album videos
     """
-    query = '{} {}'.format(item.artist, item.album)
-    results = yt.search(query, item.length)
-    results = videos_cull_by_duration(results, item.length, duration_range=120)
-    # results = videos_cull_by_keyword(results, [item.album])
+    query = '{} {}'.format(album.artist, album.title)
+    results = yt.search(query, album.duration)
+    results = videos_cull_by_duration(results, album.duration, duration_range=120)
+    # results = videos_cull_by_keyword(results, [album.title])
     return results
 
-def fingerprint_ia_audio(item, track, length=120, remove_file=False):
-    dl_path = ia_download_file(item, track.get_dl_filename(), dst_dir=IA_DL_DIR)
+def fingerprint_ia_audio(track, length=120, remove_file=False):
+    dl_path = track.download(destdir=IA_DL_DIR)
     #TODO: Handle download failure
     fingerprint = fp.generate_fingerprint(dl_path, length=length)
     if remove_file:
@@ -67,9 +56,9 @@ def fingerprint_yt_audio(video, length=120, remove_file=False):
         os.remove(dl_path)
     return fingerprint
 
-def match_full_album(yt, item, clear_cache=False):
+def match_full_album(yt, album, clear_cache=False):
     results = {}
-    yt_results = search_by_album(yt, item)
+    yt_results = search_by_album(yt, album)
     for v in yt_results:
         matches = {}
 
@@ -77,38 +66,38 @@ def match_full_album(yt, item, clear_cache=False):
         reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
                                             remove_file=clear_cache)
 
-        for track in item.tracks:
+        for track in album.tracks:
             #TODO: Handle failure
-            query_fp = fingerprint_ia_audio(item, track, remove_file=clear_cache)
+            query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
             if not query_fp:
                 matches[track.name] = None
             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
             matches[track.name] = match if match else None
-        # If at least half of the item's tracks produce a match, consider this a
+        # If at least half of the album's tracks produce a match, consider this a
         # potential match.
-        if sum(bool(match) for match in matches.values())/len(item.tracks) >= 0.5:
-            f = [t.ordinal for t in item.tracks]
+        if sum(bool(match) for match in matches.values())/len(album.tracks) >= 0.5:
+            f = [t.ordinal for t in album.tracks]
             time_offsets = {}
-            first_match = matches[item.tracks[0].name]
-            time_offsets[item.tracks[0].name] = first_match.offset if first_match else 0
+            first_match = matches[album.tracks[0].name]
+            time_offsets[album.tracks[0].name] = first_match.offset if first_match else 0
             ordered = True
             # Iterate through all tracks in album order and ensure that their
             # respective time offsets are strictly increasing. If not, consider
             # this video an invalid match.
-            for i in range(1,len(item.tracks)):
-                match = matches[item.tracks[i].name]
-                prev_offset = time_offsets[item.tracks[i-1].name]
-                curr_offset = match.offset if match else prev_offset + item.tracks[i-1].length
+            for i in range(1,len(album.tracks)):
+                match = matches[album.tracks[i].name]
+                prev_offset = time_offsets[album.tracks[i-1].name]
+                curr_offset = match.offset if match else prev_offset + album.tracks[i-1].duration
                 if curr_offset < prev_offset:
                     ordered = False
                     break
-                time_offsets[item.tracks[i].name] = curr_offset
+                time_offsets[album.tracks[i].name] = curr_offset
 
             if not ordered:
                 continue
 
             results['full_album'] = v['id']
-            for track in item.tracks:
+            for track in album.tracks:
                 results[track.name] = '{0}&t={1}'.format(v['id'], 
                                        max(0, int(time_offsets[track.name])))
 
@@ -116,7 +105,7 @@ def match_full_album(yt, item, clear_cache=False):
 
     return results
 
-def match_tracks(yt, item, tracks, clear_cache=False):
+def match_tracks(yt, album, tracks, clear_cache=False):
     results = {}
     for track in tracks:
         results[track.name] = ''
@@ -124,7 +113,7 @@ def match_tracks(yt, item, tracks, clear_cache=False):
         if not yt_results:
             continue
         #TODO: Handle failure
-        reference_fp = fingerprint_ia_audio(item, track, remove_file=clear_cache)
+        reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
         for v in yt_results:
             #TODO: Handle failure
             query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
@@ -178,7 +167,7 @@ if __name__=='__main__':
             iaid = entry
 
         try:
-            item = IAAlbum(iaid)
+            album = IAAlbum(iaid)
         except MetadataException:
             #TODO Logging
             #TODO Retries
@@ -190,11 +179,11 @@ if __name__=='__main__':
         results[iaid] = {}
 
         if args.search_full_album:
-            results[iaid] = match_full_album(yt, item, clear_cache=args.clear_audio_cache)
+            results[iaid] = match_full_album(yt, album, clear_cache=args.clear_audio_cache)
 
         if not results[iaid]:
-            tracks = [item.track_map[filename]] if args.search_by_filename else item.tracks
-            results[iaid] = match_tracks(yt, item, tracks, args.clear_audio_cache)
+            tracks = [album.track_map[filename]] if args.search_by_filename else album.tracks
+            results[iaid] = match_tracks(yt, album, tracks, args.clear_audio_cache)
             
         if args.clear_audio_cache:
             shutil.rmtree('tmp/iaaudio/' + iaid, ignore_errors=True)

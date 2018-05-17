@@ -1,7 +1,11 @@
 import internetarchive
 import re
 import enum
+import os
 from os.path import splitext
+
+class DownloadException(Exception):
+    pass
 
 class MetadataException(Exception):
     pass
@@ -82,8 +86,8 @@ class IATrack:
         self.orig_filetype = filename_to_audio_filetype(self.name)
         self.title = metadata['title']
         self.artist = metadata['artist'] if 'artist' in metadata else metadata['creator']
-        self.album = metadata['album']
-        self.length = get_track_duration(metadata)
+        self.album_title = metadata['album']
+        self.duration = get_track_duration(metadata)
         self.ordinal = get_track_ordinal(metadata)
         self.derivatives = {}
         
@@ -98,6 +102,20 @@ class IATrack:
                 return self.name
             elif ftype in self.derivatives:
                 return self.derivatives[ftype]
+
+    def download(self, destdir='.'):
+        path = '{}/{}/{}'.format(destdir.rstrip('/'),
+                             self.parent_album.identifier,
+                             self.get_dl_filename())
+        if not os.path.isfile(path):
+            errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
+                                                     destdir=destdir,
+                                                     silent=True, )
+            if errors:
+                raise DownloadException(path)
+        return path
+
+
 
 class IAAlbum:
     def __init__(self, iaid):
@@ -125,6 +143,9 @@ class IAAlbum:
             and file_md['original'] in self.track_map \
             and not splitext(file_md['name'])[0].endswith('_sample'):
                 self.track_map[file_md['original']].add_derivative(filetype, file_md['name'])
-                
-        self.album = self.tracks[0].album
-        self.length = sum(track.length for track in self.tracks)
+        
+        # Note: whatcd items often have release information in the item-level
+        # 'album' field, e.g. '[Album Title] / Original Release / CD / FLAC / Lossless'.
+        # The current workaround is to pull the album title from file metadata.
+        self.title = self.tracks[0].album_title
+        self.duration = sum(track.duration for track in self.tracks)
