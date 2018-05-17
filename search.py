@@ -186,5 +186,5 @@ if __name__=='__main__':
             results[iaid] = match_tracks(yt, album, tracks, args.clear_audio_cache)
             
         if args.clear_audio_cache:
-            shutil.rmtree('tmp/iaaudio/' + iaid, ignore_errors=True)
+            shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
     print(results)

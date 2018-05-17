@@ -78,6 +78,7 @@ def get_item_artist(item_md):
             artist = item_md['creator'][0]
     return artist
 
+
 class IATrack:
     def __init__(self, parent_album, metadata):
         self.parent_album = parent_album
@@ -114,7 +115,6 @@ class IATrack:
             if errors:
                 raise DownloadException(path)
         return path
-
 
 
 class IAAlbum:
