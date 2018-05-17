@@ -3,6 +3,11 @@ import re
 import enum
 from os.path import splitext
 
+class MetadataException(Exception):
+    pass
+
+class MediaTypeException(Exception):
+    pass
 
 class AudioFiletype(enum.Enum):
     """Enum representing audio filetypes. Ordering represents the preferred
@@ -70,7 +75,8 @@ def get_item_artist(item_md):
     return artist
 
 class IATrack:
-    def __init__(self, metadata):
+    def __init__(self, parent_album, metadata):
+        self.parent_album = parent_album
         self.metadata = metadata
         self.name = metadata['name']
         self.orig_filetype = filename_to_audio_filetype(self.name)
@@ -93,25 +99,32 @@ class IATrack:
             elif ftype in self.derivatives:
                 return self.derivatives[ftype]
 
-class IAItem:
+class IAAlbum:
     def __init__(self, iaid):
         self.item = internetarchive.get_item(iaid)
+
+        if not self.item.item_metadata or 'error' in self.item.item_metadata:
+            raise MetadataException(iaid)
+
+        if self.item.item_metadata['metadata']['mediatype'] != 'audio':
+            raise MediaTypeException(iaid)
+
         self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
-        self.tracks = dict((file_md['name'], IATrack(file_md)) for file_md in self.item.files
-                      if file_md['source'] == 'original'
-                      and filename_to_audio_filetype(file_md['name']))
+
+        self.tracks = [IATrack(self, file_md) for file_md in self.item.files
+                       if file_md['source'] == 'original'
+                       and filename_to_audio_filetype(file_md['name'])]
+        self.tracks.sort(key=lambda t: t.ordinal)
+        self.track_map = dict((track.name, track) for track in self.tracks)
 
         # Associate track objects with their non-sample derivative audio files.
         for file_md in self.item.files:
             filetype = filename_to_audio_filetype(file_md['name'])
             if filetype and file_md['source'] == 'derivative' \
-            and file_md['original'] in self.tracks \
+            and file_md['original'] in self.track_map \
             and not splitext(file_md['name'])[0].endswith('_sample'):
-                self.tracks[file_md['original']].add_derivative(filetype, file_md['name'])
+                self.track_map[file_md['original']].add_derivative(filetype, file_md['name'])
                 
-        self.album = list(self.tracks.values())[0].album
-        self.length = sum(track.length for track in self.tracks.values())
-    
-    def metadata(self):
-        return self.item.item_metadata
+        self.album = self.tracks[0].album
+        self.length = sum(track.length for track in self.tracks)

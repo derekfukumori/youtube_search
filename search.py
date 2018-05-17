@@ -6,7 +6,7 @@ import os.path
 import shutil
 import internetarchive as ia
 from urllib.parse import unquote
-from ytsearch.iametadata import IAItem
+from ytsearch.iametadata import *
 from ytsearch.youtube_search import YouTubeSearchManager
 from ytsearch.acoustid_search import YouTubeAcoustidManager
 from ytsearch.video_ranking import rank_videos
@@ -26,6 +26,8 @@ def ia_download_file(item, filename, dst_dir='.'):
     return path
 
 def search_by_track(yt, track):
+    """ Query YouTube for an individual track
+    """
     query = '{} {}'.format(track.artist, track.title)
     results = yt.search(query, track.length)
     results = videos_cull_by_duration(results, track.length, duration_range=10)
@@ -33,12 +35,16 @@ def search_by_track(yt, track):
     return results
 
 def search_by_item(yt, item):
+    """ Query YouTube for each individual track within an album
+    """
     results = {}
     for name in item.tracks:
         results[name] = search_by_track(yt, item.tracks[name])
     return results
 
 def search_by_album(yt, item):
+    """ Query YouTube for full-album videos
+    """
     query = '{} {}'.format(item.artist, item.album)
     results = yt.search(query, item.length)
     results = videos_cull_by_duration(results, item.length, duration_range=120)
@@ -56,7 +62,6 @@ def fingerprint_ia_audio(item, track, length=120, remove_file=False):
 def fingerprint_yt_audio(video, length=120, remove_file=False):
     dl_path = download_audio_file_ytdl(video['id'], YOUTUBE_DL_DIR)
     #TODO: Handle download failure
-    # fingerprint = fp.generate_fingerprint(dl_path, length=video['duration']+1)
     fingerprint = fp.generate_fingerprint(dl_path, length=length)
     if remove_file:
         os.remove(dl_path)
@@ -64,7 +69,6 @@ def fingerprint_yt_audio(video, length=120, remove_file=False):
 
 def match_full_album(yt, item, clear_cache=False):
     results = {}
-    ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.ordinal)
     yt_results = search_by_album(yt, item)
     for v in yt_results:
         matches = {}
@@ -73,7 +77,7 @@ def match_full_album(yt, item, clear_cache=False):
         reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
                                             remove_file=clear_cache)
 
-        for track in ordered_tracks:
+        for track in item.tracks:
             #TODO: Handle failure
             query_fp = fingerprint_ia_audio(item, track, remove_file=clear_cache)
             if not query_fp:
@@ -83,28 +87,28 @@ def match_full_album(yt, item, clear_cache=False):
         # If at least half of the item's tracks produce a match, consider this a
         # potential match.
         if sum(bool(match) for match in matches.values())/len(item.tracks) >= 0.5:
-            f = [t.ordinal for t in ordered_tracks]
+            f = [t.ordinal for t in item.tracks]
             time_offsets = {}
-            first_match = matches[ordered_tracks[0].name]
-            time_offsets[ordered_tracks[0].name] = first_match.offset if first_match else 0
+            first_match = matches[item.tracks[0].name]
+            time_offsets[item.tracks[0].name] = first_match.offset if first_match else 0
             ordered = True
             # Iterate through all tracks in album order and ensure that their
             # respective time offsets are strictly increasing. If not, consider
             # this video an invalid match.
-            for i in range(1,len(ordered_tracks)):
-                match = matches[ordered_tracks[i].name]
-                prev_offset = time_offsets[ordered_tracks[i-1].name]
-                curr_offset = match.offset if match else prev_offset + ordered_tracks[i-1].length
+            for i in range(1,len(item.tracks)):
+                match = matches[item.tracks[i].name]
+                prev_offset = time_offsets[item.tracks[i-1].name]
+                curr_offset = match.offset if match else prev_offset + item.tracks[i-1].length
                 if curr_offset < prev_offset:
                     ordered = False
                     break
-                time_offsets[ordered_tracks[i].name] = curr_offset
+                time_offsets[item.tracks[i].name] = curr_offset
 
             if not ordered:
                 continue
 
             results['full_album'] = v['id']
-            for track in ordered_tracks:
+            for track in item.tracks:
                 results[track.name] = '{0}&t={1}'.format(v['id'], 
                                        max(0, int(time_offsets[track.name])))
 
@@ -114,19 +118,18 @@ def match_full_album(yt, item, clear_cache=False):
 
 def match_tracks(yt, item, tracks, clear_cache=False):
     results = {}
-    #TODO: Operate directly on tracks rather than filenames
-    for filename in tracks:
-        results[filename] = ''
-        yt_results = search_by_track(yt, item.tracks[filename])
+    for track in tracks:
+        results[track.name] = ''
+        yt_results = search_by_track(yt, track)
         if not yt_results:
             continue
         #TODO: Handle failure
-        reference_fp = fingerprint_ia_audio(item, item.tracks[filename], remove_file=clear_cache)
+        reference_fp = fingerprint_ia_audio(item, track, remove_file=clear_cache)
         for v in yt_results:
             #TODO: Handle failure
             query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
             if fp.match_fingerprints(reference_fp, query_fp):
-                results[filename] = v['id']
+                results[track.name] = v['id']
                 break
     return results
 
@@ -170,27 +173,27 @@ if __name__=='__main__':
     for entry in args.entries:
         if args.search_by_filename:
             iaid, filename_url = entry.split('/', 1)
+            filename = unquote(filename_url)
         else:
             iaid = entry
 
-        item = IAItem(iaid)
-
-        if not item.metadata() or 'error' in item.metadata():
-            print("Error: Could not retrieve metadata for item "  + iaid,
-                  file=sys.stderr)
-            # TODO: Error codes?
+        try:
+            item = IAAlbum(iaid)
+        except MetadataException:
+            #TODO Logging
+            #TODO Retries
+            sys.exit(1)
+        except MediaTypeException:
+            #TODO: Logging
             sys.exit(1)
 
         results[iaid] = {}
-
-        ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.ordinal)
 
         if args.search_full_album:
             results[iaid] = match_full_album(yt, item, clear_cache=args.clear_audio_cache)
 
         if not results[iaid]:
-            #TODO: Operate directly on tracks rather than filenames
-            tracks = [unquote(filename_url)] if args.search_by_filename else item.tracks.keys()
+            tracks = [item.track_map[filename]] if args.search_by_filename else item.tracks
             results[iaid] = match_tracks(yt, item, tracks, args.clear_audio_cache)
             
         if args.clear_audio_cache:
