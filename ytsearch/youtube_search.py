@@ -2,7 +2,6 @@ import json
 import sys
 from apiclient.discovery import build
 from isodate import parse_duration
-from defaults import *
 
 class YouTubeSearchManager:
     """ Handles YouTube video searches.

@@ -13,7 +13,6 @@ from ytsearch.video_ranking import rank_videos
 from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 import audiofp.fingerprint as fp
-#from defaults import *
 
 def ia_download_file(item, filename, dst_dir='.'):
     path = '{}/{}/{}'.format(dst_dir.rstrip('/'),
@@ -23,12 +22,10 @@ def ia_download_file(item, filename, dst_dir='.'):
         errors = item.item.download(silent=True, files=[filename], destdir=dst_dir)
         if errors:
             print("Error: failed to download file", filename, file=sys.stderr)
-            return ''
+            return None
     return path
 
 def search_by_track(yt, track):
-    if not track.acoustid:
-        return ''
     query = '{} {}'.format(track.artist, track.title)
     results = yt.search(query, track.length)
     results = videos_cull_by_duration(results, track.length, duration_range=10)
@@ -48,6 +45,23 @@ def search_by_album(yt, item):
     # results = videos_cull_by_keyword(results, [item.album])
     return results
 
+def fingerprint_ia_audio(item, track, length=120, remove_file=False):
+    dl_path = ia_download_file(item, track.get_dl_filename(), dst_dir=IA_DL_DIR)
+    #TODO: Handle download failure
+    fingerprint = fp.generate_fingerprint(dl_path, length=length)
+    if remove_file:
+        os.remove(dl_path)
+    return fingerprint
+
+def fingerprint_yt_audio(video, length=120, remove_file=False):
+    dl_path = download_audio_file_ytdl(video['id'], YOUTUBE_DL_DIR)
+    #TODO: Handle download failure
+    # fingerprint = fp.generate_fingerprint(dl_path, length=video['duration']+1)
+    fingerprint = fp.generate_fingerprint(dl_path, length=length)
+    if remove_file:
+        os.remove(dl_path)
+    return fingerprint
+
 def match_full_album(yt, item, clear_cache=False):
     results = {}
     ordered_tracks = sorted(list(item.tracks.values()), key=lambda t: t.ordinal)
@@ -55,31 +69,28 @@ def match_full_album(yt, item, clear_cache=False):
     for v in yt_results:
         matches = {}
 
-        #++++
-        yt_dl_path = download_audio_file_ytdl(v['id'], YOUTUBE_DL_DIR)
-        reference_fp = fp.generate_fingerprint(yt_dl_path, length=v['duration']+1) 
-        if clear_cache:
-            os.remove(yt_dl_path)
-        #----
+        #TODO: Handle failure
+        reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
+                                            remove_file=clear_cache)
 
         for track in ordered_tracks:
-            #++++
-            dl_path = ia_download_file(item, track.name, dst_dir=IA_DL_DIR)
-            if not dl_path:
+            #TODO: Handle failure
+            query_fp = fingerprint_ia_audio(item, track, remove_file=clear_cache)
+            if not query_fp:
                 matches[track.name] = None
-                continue
-            query_fp = fp.generate_fingerprint(dl_path)
-            #-----
             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
             matches[track.name] = match if match else None
         # If at least half of the item's tracks produce a match, consider this a
-        # successful full-album match.
+        # potential match.
         if sum(bool(match) for match in matches.values())/len(item.tracks) >= 0.5:
             f = [t.ordinal for t in ordered_tracks]
             time_offsets = {}
             first_match = matches[ordered_tracks[0].name]
             time_offsets[ordered_tracks[0].name] = first_match.offset if first_match else 0
             ordered = True
+            # Iterate through all tracks in album order and ensure that their
+            # respective time offsets are strictly increasing. If not, consider
+            # this video an invalid match.
             for i in range(1,len(ordered_tracks)):
                 match = matches[ordered_tracks[i].name]
                 prev_offset = time_offsets[ordered_tracks[i-1].name]
@@ -94,10 +105,29 @@ def match_full_album(yt, item, clear_cache=False):
 
             results['full_album'] = v['id']
             for track in ordered_tracks:
-                results[track.name] = '{0}&t={1}'.format(v['id'], max(0, int(time_offsets[track.name])))
+                results[track.name] = '{0}&t={1}'.format(v['id'], 
+                                       max(0, int(time_offsets[track.name])))
 
             break
 
+    return results
+
+def match_tracks(yt, item, tracks, clear_cache=False):
+    results = {}
+    #TODO: Operate directly on tracks rather than filenames
+    for filename in tracks:
+        results[filename] = ''
+        yt_results = search_by_track(yt, item.tracks[filename])
+        if not yt_results:
+            continue
+        #TODO: Handle failure
+        reference_fp = fingerprint_ia_audio(item, item.tracks[filename], remove_file=clear_cache)
+        for v in yt_results:
+            #TODO: Handle failure
+            query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
+            if fp.match_fingerprints(reference_fp, query_fp):
+                results[filename] = v['id']
+                break
     return results
 
 
@@ -119,11 +149,6 @@ if __name__=='__main__':
     parser.add_argument('-cac', '--clear_audio_cache', dest='clear_audio_cache',
                         action='store_true', default=False, 
                         help='Remove downloaded audio files after fingerprint comparison')
-    # parser.add_argument('-yc', '--use_youtube_cache', dest='use_youtube_cache',
-    #         action='store_true', default=False, help='Use YouTube search cache')
-    # parser.add_argument('-ycp', '--youtube_cache_path', dest='youtube_cache_path',
-    #         metavar = 'YOUTUBE_CACHE_PATH', default=YOUTUBE_CACHE_PATH,
-    #         help='Path to YouTube search cache file')
 
     args = parser.parse_args()
 
@@ -139,8 +164,6 @@ if __name__=='__main__':
     yt = YouTubeSearchManager(GOOGLE_API_KEYS[0],
                               max_results=MAX_YOUTUBE_RESULTS,
                               use_cache=False)
-                              #use_cache=args.use_youtube_cache,
-                              #cache_path=args.youtube_cache_path)
 
     results = {}
 
@@ -165,30 +188,11 @@ if __name__=='__main__':
         if args.search_full_album:
             results[iaid] = match_full_album(yt, item, clear_cache=args.clear_audio_cache)
 
-        #TODO: separate functions
         if not results[iaid]:
+            #TODO: Operate directly on tracks rather than filenames
             tracks = [unquote(filename_url)] if args.search_by_filename else item.tracks.keys()
-            for filename in tracks:
-                results[iaid][filename] = ''
-                yt_results = search_by_track(yt, item.tracks[filename])
-                if not yt_results:
-                    continue
-                #++++
-                dl_path = ia_download_file(item, filename)
-                if not dl_path:
-                    continue
-                reference_fp = fp.generate_fingerprint(dl_path)
-                #-----
-                for v in yt_results:
-                    #+++++
-                    yt_dl_path = download_audio_file_ytdl(v['id'], YOUTUBE_DL_DIR)
-                    query_fp = fp.generate_fingerprint(yt_dl_path)
-                    if args.clear_audio_cache:
-                        os.remove(yt_dl_path)
-                    #-----
-                    if fp.match_fingerprints(reference_fp, query_fp):
-                        results[iaid][filename] = v['id']
-                        break
+            results[iaid] = match_tracks(yt, item, tracks, args.clear_audio_cache)
+            
         if args.clear_audio_cache:
             shutil.rmtree('tmp/iaaudio/' + iaid, ignore_errors=True)
     print(results)

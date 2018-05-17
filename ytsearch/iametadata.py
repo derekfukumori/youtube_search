@@ -70,8 +70,7 @@ def get_item_artist(item_md):
     return artist
 
 class IATrack:
-    def __init__(self, iaid, metadata):
-        self.identifier = iaid
+    def __init__(self, metadata):
         self.metadata = metadata
         self.name = metadata['name']
         self.orig_filetype = filename_to_audio_filetype(self.name)
@@ -99,7 +98,7 @@ class IAItem:
         self.item = internetarchive.get_item(iaid)
         self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
-        self.tracks = dict((file_md['name'], IATrack(iaid, file_md)) for file_md in self.item.files
+        self.tracks = dict((file_md['name'], IATrack(file_md)) for file_md in self.item.files
                       if file_md['source'] == 'original'
                       and filename_to_audio_filetype(file_md['name']))
 
