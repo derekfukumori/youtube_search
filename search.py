@@ -5,6 +5,7 @@ import os
 import os.path
 import shutil
 import internetarchive as ia
+from random import choice
 from urllib.parse import unquote
 from ytsearch.iametadata import *
 from ytsearch.youtube_search import YouTubeSearchManager
@@ -22,14 +23,6 @@ def search_by_track(yt, track):
     results = videos_cull_by_duration(results, track.duration, duration_range=10)
     # results = videos_cull_by_keyword(results, track.title)
     return results
-
-# def search_by_item(yt, item):
-#     """ Query YouTube for each individual track within an album
-#     """
-#     results = {}
-#     for name in item.tracks:
-#         results[name] = search_by_track(yt, item.tracks[name])
-#     return results
 
 def search_by_album(yt, album):
     """ Query YouTube for full-album videos
@@ -73,15 +66,15 @@ def match_full_album(yt, album, clear_cache=False):
                 matches[track.name] = None
             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
             matches[track.name] = match if match else None
-        # If at least half of the album's tracks produce a match, consider this a
-        # potential match.
+        # If at least half of the album's tracks produce a match, consider this 
+        # video a potential match.
         if sum(bool(match) for match in matches.values())/len(album.tracks) >= 0.5:
             f = [t.ordinal for t in album.tracks]
             time_offsets = {}
             first_match = matches[album.tracks[0].name]
             time_offsets[album.tracks[0].name] = first_match.offset if first_match else 0
             ordered = True
-            # Iterate through all tracks in album order and ensure that their
+            # Iterate through all tracks in album-order and ensure that their
             # respective time offsets are strictly increasing. If not, consider
             # this video an invalid match.
             for i in range(1,len(album.tracks)):
@@ -152,8 +145,7 @@ if __name__=='__main__':
     IA_DL_DIR = config.get('ytsearch', {}).get('ia_dl_dir', 'tmp/iadl')
     MAX_YOUTUBE_RESULTS = int(config.get('ytsearch', {}).get('max_youtube_results', 10))
 
-    #TODO: Cycle API keys
-    yt = YouTubeSearchManager(GOOGLE_API_KEYS[0],
+    yt = YouTubeSearchManager(choice(GOOGLE_API_KEYS),
                               max_results=MAX_YOUTUBE_RESULTS,
                               use_cache=False)
 
