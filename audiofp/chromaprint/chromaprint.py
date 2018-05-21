@@ -15,9 +15,9 @@ def generate_fingerprint(audio_file, length=120):
 		proc = subprocess.run(['fpcalc', '-raw', '-plain', audio_file, '-length', str(ceil(length)), '-overlap'], 
 			   stdout=subprocess.PIPE, encoding='ascii', check=True)
 	except subprocess.CalledProcessError:
-		#TODO: Exit codes
-		print("Failed to generate fingerprint", file=sys.stderr)
-		exit(1)
+		raise FingerprintException	
+		# print("Failed to generate fingerprint", file=sys.stderr)
+		# exit(1)
 	
 	fingerprint = [int(n) for n in proc.stdout.rstrip().split(',')]
 	return fingerprint

@@ -15,6 +15,14 @@ from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 import audiofp.fingerprint as fp
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.WARNING)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 def search_by_track(yt, track):
     """ Query YouTube for an individual track
     """
@@ -55,15 +63,21 @@ def match_full_album(yt, album, clear_cache=False):
     for v in yt_results:
         matches = {}
 
-        #TODO: Handle failure
-        reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
-                                            remove_file=clear_cache)
+        try:
+            reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
+                                                remove_file=clear_cache)
+        except fp.FingerprintException:
+            logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
+            continue
 
         for track in album.tracks:
-            #TODO: Handle failure
-            query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
-            if not query_fp:
-                matches[track.name] = None
+            matches[track.name] = None
+            try:
+                query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
+            except:
+                logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
+                continue
+            
             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
             matches[track.name] = match if match else None
         # If at least half of the album's tracks produce a match, consider this 
@@ -105,11 +119,17 @@ def match_tracks(yt, album, tracks, clear_cache=False):
         yt_results = search_by_track(yt, track)
         if not yt_results:
             continue
-        #TODO: Handle failure
-        reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
+        try:
+            reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
+        except fp.FingerprintException:
+            logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
+            continue
         for v in yt_results:
-            #TODO: Handle failure
-            query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
+            try:
+                query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
+            except fp.FingerprintException:
+                logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
+                continue
             if fp.match_fingerprints(reference_fp, query_fp):
                 results[track.name] = v['id']
                 break
