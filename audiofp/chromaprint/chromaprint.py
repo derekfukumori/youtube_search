@@ -3,6 +3,9 @@ import subprocess
 import chromaprint_compare_c
 from math import ceil
 
+class FingerprintException(Exception):
+    pass
+
 class ChromaprintMatch:
 	def __init__(self, score, segments):
 		self.score = score
@@ -15,9 +18,7 @@ def generate_fingerprint(audio_file, length=120):
 		proc = subprocess.run(['fpcalc', '-raw', '-plain', audio_file, '-length', str(ceil(length)), '-overlap'], 
 			   stdout=subprocess.PIPE, encoding='ascii', check=True)
 	except subprocess.CalledProcessError:
-		raise FingerprintException	
-		# print("Failed to generate fingerprint", file=sys.stderr)
-		# exit(1)
+		raise FingerprintException()
 	
 	fingerprint = [int(n) for n in proc.stdout.rstrip().split(',')]
 	return fingerprint

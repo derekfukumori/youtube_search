@@ -14,6 +14,7 @@ from ytsearch.video_ranking import rank_videos
 from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 import audiofp.fingerprint as fp
+from audiofp.chromaprint.chromaprint import FingerprintException
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -66,7 +67,7 @@ def match_full_album(yt, album, clear_cache=False):
         try:
             reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
                                                 remove_file=clear_cache)
-        except fp.FingerprintException:
+        except FingerprintException:
             logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
             continue
 
@@ -74,7 +75,7 @@ def match_full_album(yt, album, clear_cache=False):
             matches[track.name] = None
             try:
                 query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
-            except:
+            except FingerprintException:
                 logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
                 continue
             
@@ -121,13 +122,13 @@ def match_tracks(yt, album, tracks, clear_cache=False):
             continue
         try:
             reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
-        except fp.FingerprintException:
+        except FingerprintException:
             logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
             continue
         for v in yt_results:
             try:
                 query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
-            except fp.FingerprintException:
+            except FingerprintException:
                 logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
                 continue
             if fp.match_fingerprints(reference_fp, query_fp):
