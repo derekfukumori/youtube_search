@@ -18,7 +18,7 @@ This project also requires the [Chromaprint fpcalc utility](https://acoustid.org
 The script takes as input any number of Internet Archive item identifiers. To match against individual files, use the `-sf` flag with input format `identifier/filename_url`. Output is printed to stdout with the following form:
 	
     {'item_identifier':
-    	{'filename0': '[YouTube video ID]',
+        {'filename0': '[YouTube video ID]',
         'filename1': '[YouTube video ID]',
         ...
         }
@@ -47,7 +47,7 @@ By default, files downloaded from both YouTube and Internet Archive are kept on 
 To enable matching items against full-album videos, run with the `-f` flag. This will attempt to match the item first against full-album videos. If none is found, the script will then match against each individual track as normal. In the case of a full-album match, the output will look like the following:
 	
     {'cd_18-tracks_bruce-springsteen':
-    	{'full_album': 'vyqhSmqvTfs',
+        {'full_album': 'vyqhSmqvTfs',
         "disc1/01. Bruce Springsteen - Growin' Up.flac": 'vyqhSmqvTfs&t=0',
         'disc1/02. Bruce Springsteen - Seaside Bar Song.flac': 'vyqhSmqvTfs&t=160',
         'disc1/03. Bruce Springsteen - Rendezvous.flac': 'vyqhSmqvTfs&t=375',
