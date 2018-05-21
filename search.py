@@ -1,18 +1,16 @@
-import argparse
 import sys
-import glob
 import os
 import os.path
 import shutil
+import argparse
 import internetarchive as ia
 from random import choice
 from urllib.parse import unquote
 from ytsearch.iametadata import *
 from ytsearch.youtube_search import YouTubeSearchManager
-from ytsearch.acoustid_search import YouTubeAcoustidManager
-from ytsearch.video_ranking import rank_videos
 from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
+from ytsearch.exceptions import *
 import audiofp.fingerprint as fp
 from audiofp.chromaprint.chromaprint import FingerprintException
 
@@ -44,7 +42,6 @@ def search_by_album(yt, album):
 
 def fingerprint_ia_audio(track, length=120, remove_file=False):
     dl_path = track.download(destdir=IA_DL_DIR)
-    #TODO: Handle download failure
     fingerprint = fp.generate_fingerprint(dl_path, length=length)
     if remove_file:
         os.remove(dl_path)
@@ -52,7 +49,6 @@ def fingerprint_ia_audio(track, length=120, remove_file=False):
 
 def fingerprint_yt_audio(video, length=120, remove_file=False):
     dl_path = download_audio_file_ytdl(video['id'], YOUTUBE_DL_DIR)
-    #TODO: Handle download failure
     fingerprint = fp.generate_fingerprint(dl_path, length=length)
     if remove_file:
         os.remove(dl_path)
@@ -77,6 +73,9 @@ def match_full_album(yt, album, clear_cache=False):
                 query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
             except FingerprintException:
                 logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
+                continue
+            except DownloadException:
+                logger.warning('{}: Failed to download file "{}"'.format(album.identifier, track.name))
                 continue
             
             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
@@ -124,6 +123,9 @@ def match_tracks(yt, album, tracks, clear_cache=False):
             reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
         except FingerprintException:
             logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
+            continue
+        except DownloadException:
+            logger.warning('{}: Failed to download file "{}"'.format(album.identifier, track.name))
             continue
         for v in yt_results:
             try:
@@ -182,12 +184,11 @@ if __name__=='__main__':
         try:
             album = IAAlbum(iaid)
         except MetadataException:
-            #TODO Logging
-            #TODO Retries
-            sys.exit(1)
+            logger.error('{}: Unable to process item metadata'.format(iaid))
+            sys.exit(ExitCodes.IAMetadataError.value)
         except MediaTypeException:
-            #TODO: Logging
-            sys.exit(1)
+            logger.error('{}: Item is not audio'.format(iaid))
+            sys.exit(ExitCodes.IAMediatypeError.value)
 
         results[iaid] = {}
 

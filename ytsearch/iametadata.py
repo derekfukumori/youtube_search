@@ -4,6 +4,8 @@ import re
 import enum
 import os
 from os.path import splitext
+from ytsearch.exceptions import *
+from requests.exceptions import ConnectionError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -13,14 +15,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-class DownloadException(Exception):
-    pass
 
-class MetadataException(Exception):
-    pass
-
-class MediaTypeException(Exception):
-    pass
 
 class AudioFiletype(enum.Enum):
     """Enum representing audio filetypes. Ordering represents the preferred
@@ -117,12 +112,20 @@ class IATrack:
         path = '{}/{}/{}'.format(destdir.rstrip('/'),
                              self.parent_album.identifier,
                              self.get_dl_filename())
-        if not os.path.isfile(path):
-            errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
-                                                     destdir=destdir,
-                                                     silent=True, )
-            if errors:
-                raise DownloadException(path)
+
+        retries = 0
+        while retries < 3:
+            try:
+                if not os.path.isfile(path):
+                    errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
+                                                             destdir=destdir,
+                                                             silent=True, )
+                    if errors:
+                        raise DownloadException(path)
+            except ConnectionError:
+                retries += 1
+                if retries >= 3:
+                    raise DownloadException(path)
         return path
 
 
