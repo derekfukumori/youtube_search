@@ -1,8 +1,18 @@
 import internetarchive
+import logging
 import re
 import enum
 import os
 from os.path import splitext
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 class DownloadException(Exception):
     pass
@@ -27,13 +37,13 @@ def filename_to_audio_filetype(filename):
     file's extension. If the file is not one of the enumerated types, return None.
     """
     ext = splitext(filename)[1]
-    if ext == '.mp3':
+    if ext.lower() == '.mp3':
         return AudioFiletype.MP3
-    elif ext == '.ogg':
+    elif ext.lower() == '.ogg':
         return AudioFiletype.OGG
-    elif ext == '.flac':
+    elif ext.lower() == '.flac':
         return AudioFiletype.FLAC
-    elif ext == '.m4a':
+    elif ext.lower() == '.m4a':
         return AudioFiletype.M4A
 
 def get_track_duration(track_md):
@@ -130,9 +140,19 @@ class IAAlbum:
         self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
 
-        self.tracks = [IATrack(self, file_md) for file_md in self.item.files
-                       if file_md['source'] == 'original'
-                       and filename_to_audio_filetype(file_md['name'])]
+        # self.tracks = [IATrack(self, file_md) for file_md in self.item.files
+        #                if file_md['source'] == 'original'
+        #                and filename_to_audio_filetype(file_md['name'])]
+        self.tracks = []
+        for file_md in self.item.files:
+            if file_md['source'] == 'original' and filename_to_audio_filetype(file_md['name']):
+                try:
+                    self.tracks.append(IATrack(self, file_md))
+                except KeyError as e:
+                    logger.warning('{}: File "{}" does not contain metadata entry {}'.format(iaid, file_md['name'], e))
+        if not self.tracks:
+            logger.error('{}: Unable to find valid tracks'.format(iaid))
+            raise MetadataException(iaid)
         self.tracks.sort(key=lambda t: t.ordinal)
         self.track_map = dict((track.name, track) for track in self.tracks)
 
