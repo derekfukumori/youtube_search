@@ -122,6 +122,7 @@ class IATrack:
                                                              silent=True, )
                     if errors:
                         raise DownloadException(path)
+                break
             except ConnectionError:
                 retries += 1
                 if retries >= 3:
