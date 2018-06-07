@@ -11,6 +11,7 @@ from ytsearch.youtube_search import YouTubeSearchManager
 from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 from ytsearch.exceptions import *
+from archiving.youtube_archiving import archive_dict
 import audiofp.fingerprint as fp
 from audiofp.chromaprint.chromaprint import FingerprintException
 
@@ -145,6 +146,9 @@ if __name__=='__main__':
     parser.add_argument('entries', metavar='ENTRIES', type=str, nargs='+',
                         help='One or more Internet Archive identifiers, or \
                         identifier/filename if --searchbyfilename is specified')
+    parser.add_argument('-a', '--archive_videos', dest='archive_videos',
+                        action='store_true', default=False,
+                        help='Submit matched videos to the Internet Archive YouTube archiver')
     parser.add_argument('-c', '--config_file', dest='config_file',
                         metavar='CONFIG_FILE', default=None,
                         help='Path to an internetarchive library config file')
@@ -201,4 +205,7 @@ if __name__=='__main__':
             
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
+    if args.archive_videos:
+        archive_dict(results)
+
     print(results)
