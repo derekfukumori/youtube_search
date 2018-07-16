@@ -3,6 +3,7 @@ import os
 import os.path
 import shutil
 import argparse
+import json
 import internetarchive as ia
 from random import choice
 from urllib.parse import unquote
@@ -34,10 +35,7 @@ def search_by_track(yt, track, query_fmt = '{artist} {title}'):
     """
     #query = '{} {}'.format(track.artist, track.title)
     query = form_query(track, query_fmt)
-    print(query, track.duration)
-
     results = yt.search(query, track.duration)
-    print(results)
     results = videos_cull_by_duration(results, track.duration, duration_range=10)
     # results = videos_cull_by_keyword(results, track.title)
     return results
@@ -231,4 +229,4 @@ if __name__=='__main__':
     if args.archive_videos:
         archive_dict(results)
 
-    print(results)
+    print(json.dumps(results))
