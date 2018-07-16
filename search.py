@@ -23,11 +23,21 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-def search_by_track(yt, track):
+def form_query(track, query_str):
+    query = query_str.format(artist = track.artist, 
+                             title = track.title, 
+                             album_title = track.album_title)
+    return query
+
+def search_by_track(yt, track, query_fmt = '{artist} {title}'):
     """ Query YouTube for an individual track
     """
-    query = '{} {}'.format(track.artist, track.title)
+    #query = '{} {}'.format(track.artist, track.title)
+    query = form_query(track, query_fmt)
+    print(query, track.duration)
+
     results = yt.search(query, track.duration)
+    print(results)
     results = videos_cull_by_duration(results, track.duration, duration_range=10)
     # results = videos_cull_by_keyword(results, track.title)
     return results
@@ -113,11 +123,14 @@ def match_full_album(yt, album, clear_cache=False):
 
     return results
 
-def match_tracks(yt, album, tracks, clear_cache=False):
+def match_tracks(yt, album, tracks, query_fmt=None, clear_cache=False):
     results = {}
     for track in tracks:
         results[track.name] = ''
-        yt_results = search_by_track(yt, track)
+        if query_fmt:
+            yt_results = search_by_track(yt, track, query_fmt)
+        else:
+            yt_results = search_by_track(yt, track)
         if not yt_results:
             continue
         try:
@@ -161,6 +174,11 @@ if __name__=='__main__':
     parser.add_argument('-cac', '--clear_audio_cache', dest='clear_audio_cache',
                         action='store_true', default=False, 
                         help='Remove downloaded audio files after fingerprint comparison')
+    parser.add_argument('-i', '--ignore_matched', dest='ignore_matched',
+                        action='store_true', default=False, 
+                        help='Skip tracks that have YouTube identifiers in their metadata')
+    parser.add_argument('-q', '--query_format', dest='query_format',
+                        metavar='QUERY_FORMAT', default=None)
 
     args = parser.parse_args()
 
@@ -200,8 +218,13 @@ if __name__=='__main__':
             results[iaid] = match_full_album(yt, album, clear_cache=args.clear_audio_cache)
 
         if not results[iaid]:
-            tracks = [album.track_map[filename]] if args.search_by_filename else album.tracks
-            results[iaid] = match_tracks(yt, album, tracks, args.clear_audio_cache)
+            if args.search_by_filename:
+                tracks = [album.track_map[filename]]
+            elif args.ignore_matched:
+                tracks = [t for t in album.tracks if not t.get_youtube_match()]
+            else:
+                tracks = album.tracks
+            results[iaid] = match_tracks(yt, album, tracks, query_fmt=args.query_format, clear_cache=args.clear_audio_cache)
             
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)

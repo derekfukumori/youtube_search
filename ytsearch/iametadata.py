@@ -108,6 +108,17 @@ class IATrack:
             elif ftype in self.derivatives:
                 return self.derivatives[ftype]
 
+    def get_youtube_match(self):
+        extid = self.metadata.get('external-identifier', None)
+        if isinstance(extid, list):
+            for e in extid:
+                if 'urn:youtube' in e:
+                    return e
+        elif isinstance(extid, str):
+            if 'urn:youtube' in extid:
+                return extid 
+        return None
+
     def download(self, destdir='.'):
         path = '{}/{}/{}'.format(destdir.rstrip('/'),
                              self.parent_album.identifier,
