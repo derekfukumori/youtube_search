@@ -52,6 +52,9 @@ if __name__ == '__main__':
 
 		if item is None:
 			item = get_item(identifier)
+			if item.item_metadata.get('is_dark', False):
+				print('warning: skipping darked item {}.'.format(item.identifier))
+				sys.exit(0)
 
 		file_eid = copy(
 				item.get_file(f).__dict__.get('external-identifier', list()))
