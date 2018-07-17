@@ -6,6 +6,7 @@ import os
 from os.path import splitext
 from ytsearch.exceptions import *
 from requests.exceptions import ConnectionError
+from requests.exceptions import ReadTimeout
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -124,8 +125,9 @@ class IATrack:
                              self.parent_album.identifier,
                              self.get_dl_filename())
 
+        #TODO: Make less ugly
         retries = 0
-        while retries < 3:
+        while retries < 10:
             try:
                 if not os.path.isfile(path):
                     errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
@@ -134,16 +136,26 @@ class IATrack:
                     if errors:
                         raise DownloadException(path)
                 break
-            except ConnectionError:
+            except ReadTimeout:
                 retries += 1
-                if retries >= 3:
+                if retries >= 10:
                     raise DownloadException(path)
         return path
 
 
 class IAAlbum:
     def __init__(self, iaid):
-        self.item = internetarchive.get_item(iaid)
+        #TODO: Make less ugly
+        retries = 0
+        while retries < 10:
+            try:
+                self.item = internetarchive.get_item(iaid)
+                break
+            except ReadTimeout:
+                print(retries)
+                retries += 1
+                if retries >= 10:
+                    raise DownloadException(path)
 
         if not self.item.item_metadata or 'error' in self.item.item_metadata:
             raise MetadataException(iaid)
