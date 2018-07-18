@@ -8,6 +8,8 @@ from ytsearch.exceptions import *
 from requests.exceptions import ConnectionError
 from requests.exceptions import ReadTimeout
 
+MAX_RETRIES = 10
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
@@ -15,8 +17,6 @@ ch.setLevel(logging.WARNING)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-
-
 
 class AudioFiletype(enum.Enum):
     """Enum representing audio filetypes. Ordering represents the preferred
@@ -61,7 +61,7 @@ def get_track_ordinal(track_md):
     """ Get the ordinal of a track representing its placement on an album, given
     the track's metadata. If no ordering is specified in metadata, use the
     numerals in the track's filename.
-    NB: This (usually) fails for multidisc items.
+    NB: This (usually) gives incorrect results for multidisc items.
     """
     ordinal = track_md['track'] if 'track' in track_md else track_md['name']
     ordinal = re.sub('[^0-9]+', '', ordinal)
@@ -125,37 +125,38 @@ class IATrack:
                              self.parent_album.identifier,
                              self.get_dl_filename())
 
-        #TODO: Make less ugly
-        retries = 0
-        while retries < 10:
+        # If a file already exists at this path, return
+        if os.path.isfile(path):
+             return path
+
+        for _ in range(MAX_RETRIES):
             try:
-                if not os.path.isfile(path):
-                    errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
-                                                             destdir=destdir,
-                                                             silent=True, )
-                    if errors:
-                        raise DownloadException(path)
-                break
-            except ReadTimeout:
-                retries += 1
-                if retries >= 10:
+                errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
+                                                         destdir=destdir,
+                                                         silent=True)
+                if errors:
                     raise DownloadException(path)
+            except ReadTimeout:
+                continue
+            else:
+                break
+        else:
+            raise DownloadException(path)
+
         return path
 
 
 class IAAlbum:
     def __init__(self, iaid):
-        #TODO: Make less ugly
-        retries = 0
-        while retries < 10:
+        for _ in range(MAX_RETRIES):
             try:
                 self.item = internetarchive.get_item(iaid)
-                break
             except ReadTimeout:
-                print(retries)
-                retries += 1
-                if retries >= 10:
-                    raise DownloadException(path)
+                continue
+            else:
+                break
+        else:
+            raise DownloadException(iaid)
 
         if not self.item.item_metadata or 'error' in self.item.item_metadata:
             raise MetadataException(iaid)
