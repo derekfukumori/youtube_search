@@ -22,6 +22,10 @@ def update_metadata(item, md, target='metadata'):
 			print('success: {}/{} already updated, skipped.'.format(item.identifier,
 																	target))
 			return r
+		elif 'no file entry of that name found' in r.text:
+			print('warning: {}/{} does not exist, skipped.'.format(item.identifier,
+																	target))
+			return r
 		else:
 			print('warning: {}/{} failed, retrying. {} retries left.'.format(
 				  item.identifier, target, retries))
