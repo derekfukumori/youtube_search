@@ -13,3 +13,6 @@ class MetadataException(Exception):
 
 class MediaTypeException(Exception):
     pass
+
+class MetadataUpdateError(Exception):
+	pass

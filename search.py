@@ -13,6 +13,7 @@ from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 from ytsearch.exceptions import *
 from archiving.youtube_archiving import archive_dict
+from metadata_update import update_metadata
 import audiofp.fingerprint as fp
 from audiofp.chromaprint.chromaprint import FingerprintException
 
@@ -33,11 +34,9 @@ def form_query(track, query_str):
 def search_by_track(yt, track, query_fmt = '{artist} {title}'):
     """ Query YouTube for an individual track
     """
-    #query = '{} {}'.format(track.artist, track.title)
     query = form_query(track, query_fmt)
     results = yt.search(query, track.duration)
     results = videos_cull_by_duration(results, track.duration, duration_range=10)
-    # results = videos_cull_by_keyword(results, track.title)
     return results
 
 def search_by_album(yt, album):
@@ -46,7 +45,6 @@ def search_by_album(yt, album):
     query = '{} {}'.format(album.artist, album.title)
     results = yt.search(query, album.duration)
     results = videos_cull_by_duration(results, album.duration, duration_range=120)
-    # results = videos_cull_by_keyword(results, [album.title])
     return results
 
 def fingerprint_ia_audio(track, length=120, remove_file=False):
@@ -177,6 +175,9 @@ if __name__=='__main__':
                         help='Skip tracks that have YouTube identifiers in their metadata')
     parser.add_argument('-q', '--query_format', dest='query_format',
                         metavar='QUERY_FORMAT', default=None)
+    parser.add_argument('-d', '--dry_run', dest='dry_run', 
+                        action='store_true', default=False,
+                        help='Bypass writing metadata to the Archive')
 
     args = parser.parse_args()
 
@@ -226,7 +227,11 @@ if __name__=='__main__':
             
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
+    
     if args.archive_videos:
         archive_dict(results)
+
+    if not args.dry_run:
+        update_metadata(results)
 
     print(json.dumps(results))
