@@ -16,6 +16,8 @@ from archiving.youtube_archiving import archive_dict
 from metadata_update import update_metadata
 import audiofp.fingerprint as fp
 from audiofp.chromaprint.chromaprint import FingerprintException
+import redis
+import rq
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -178,6 +180,10 @@ if __name__=='__main__':
     parser.add_argument('-d', '--dry_run', dest='dry_run', 
                         action='store_true', default=False,
                         help='Bypass writing metadata to the Archive')
+    parser.add_argument('-rq', '--use_redis_queue', dest='use_redis_queue',
+                        action='store_true', default=False,
+                        help='Upload metadata asynchronously via redis Queue.\
+                              Requires a running redis server.')
 
     args = parser.parse_args()
 
@@ -232,6 +238,15 @@ if __name__=='__main__':
         archive_dict(results)
 
     if not args.dry_run:
-        update_metadata(results)
+        if args.use_redis_queue:
+            try:
+                #TODO: Connection settings in archive config.
+                q = rq.Queue(connection=redis.Redis())
+                q.enqueue(update_metadata, results)
+            except redis.exceptions.ConnectionError():
+                logger.warning('No valid redis connection; uploading metadata directly.')
+                update_metadata(results)
+        else:
+            update_metadata(results)
 
     print(json.dumps(results))

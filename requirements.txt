@@ -4,3 +4,4 @@ internetarchive
 isodate
 pyacoustid
 pytube
+rq

@@ -10,8 +10,10 @@ from ytsearch.exceptions import *
 
 logger = logging.getLogger("metadata_update")
 logger.setLevel(logging.INFO)
+# logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
+# ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
@@ -83,7 +85,7 @@ def update_metadata(results_map):
 			matched_file_eid = 'urn:youtube:{}'.format(files_map[f])
 			if matched_file_eid in file_eid:
 				logger.debug('{}/{} already in metadata.'.format(item.identifier, f))
-				#continue
+				continue
 
 			file_eid.append(matched_file_eid)
 			file_eid = list(set(file_eid))
