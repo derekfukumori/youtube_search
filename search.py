@@ -19,6 +19,12 @@ from audiofp.chromaprint.chromaprint import FingerprintException
 import redis
 import rq
 
+
+
+import youtube.match as ytmatch
+
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
@@ -217,10 +223,14 @@ if __name__=='__main__':
             logger.error('{}: Item is not audio'.format(iaid))
             sys.exit(ExitCodes.IAMediatypeError.value)
 
+        YOUTUBE_DL_SUBDIR = '{}/{}'.format(YOUTUBE_DL_DIR, iaid)
+
         results[iaid] = {}
 
         if args.search_full_album:
-            results[iaid] = match_full_album(yt, album, clear_cache=args.clear_audio_cache)
+            results[iaid] = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
+                                                yt_dir=YOUTUBE_DL_SUBDIR,
+                                                api_key=GOOGLE_API_KEYS)
 
         if not results[iaid]:
             if args.search_by_filename:
@@ -229,10 +239,14 @@ if __name__=='__main__':
                 tracks = [t for t in album.tracks if not t.get_youtube_match()]
             else:
                 tracks = album.tracks
-            results[iaid] = match_tracks(yt, album, tracks, query_fmt=args.query_format, clear_cache=args.clear_audio_cache)
+
+            ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
+                                 yt_dir=YOUTUBE_DL_SUBDIR, 
+                                 api_key=GOOGLE_API_KEYS)
             
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
+            shutil.rmtree(YOUTUBE_DL_SUBDIR, ignore_errors=True)
     
     if args.archive_videos:
         archive_dict(results)
