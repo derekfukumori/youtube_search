@@ -12,7 +12,7 @@ from ytsearch.youtube_search import YouTubeSearchManager
 from ytsearch.video_ranking import videos_cull_by_duration
 from ytsearch.youtube_download import download_audio_file_ytdl
 from ytsearch.exceptions import *
-from archiving.youtube_archiving import archive_dict
+from archiving.youtube_archiving import archiver_submit
 from metadata_update import update_metadata
 import audiofp.fingerprint as fp
 from audiofp.chromaprint.chromaprint import FingerprintException
@@ -48,9 +48,6 @@ if __name__=='__main__':
                         action='store_true', default=False)
     parser.add_argument('-S', '--search_spotify', dest='search_spotify',
                         action='store_true', default=False)
-    parser.add_argument('-a', '--archive_videos', dest='archive_videos',
-                        action='store_true', default=False,
-                        help='Submit matched videos to the Internet Archive YouTube archiver')
     parser.add_argument('-c', '--config_file', dest='config_file',
                         metavar='CONFIG_FILE', default=None,
                         help='Path to an internetarchive library config file')
@@ -112,7 +109,6 @@ if __name__=='__main__':
 
         results[iaid] = {}
 
-
         # YouTube
         if args.search_youtube:
             youtube_results = {}          
@@ -133,6 +129,20 @@ if __name__=='__main__':
                                                        api_key=GOOGLE_API_KEYS)
             merge_results(results[iaid], youtube_results, 'youtube')
 
+            # Submit results to the YouTube archiver endpoint
+            vids = youtube_results['full_album'] if 'full_album' in youtube_results \
+                                                 else list(youtube_results.values())
+            if args.use_redis_queue:
+                try:
+                    #TODO: Connection settings in archive config.
+                    q = rq.Queue(connection=redis.Redis())
+                    q.enqueue(archiver_submit, vids)
+                except redis.exceptions.ConnectionError():
+                    archiver_submit(vids)
+            else:
+                archiver_submit(vids)
+
+        # Spotify
         if args.search_spotify:
             spotify_results = {}
             if args.search_full_album:
@@ -157,9 +167,6 @@ if __name__=='__main__':
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
             shutil.rmtree(YOUTUBE_DL_SUBDIR, ignore_errors=True)
-    
-    if args.archive_videos:
-        archive_dict(results)
 
     if not args.dry_run:
         if args.use_redis_queue:
