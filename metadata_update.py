@@ -63,7 +63,6 @@ def write_metadata(item, md, target='metadata'):
 													  r.content))
 	raise MetadataUpdateError('{}/{}'.format(item.identifier, target))
 
-
 def contains_match(files_map):
 	for f in files_map:
 		if files_map[f]:
@@ -100,8 +99,8 @@ def get_updated_file_metadata(filename, matched_eids, item):
 		file_eid_match_date = [x for x in file_eid_match_date if not x.startswith(source)]
 		file_eid_match_date.append('{}:{}'.format(source, NOW))
 		updated = True
-	 if updated:
-	 	return { 'external-identifier': file_eid,
+	if updated:
+		return { 'external-identifier': file_eid,
 				 'external-identifier-match-date': file_eid_match_date }
 	return None
 
@@ -113,11 +112,12 @@ def get_updated_item_metadata(matched_eids, item):
 		if matched_eid in item_eid:
 			continue
 		item_eid.append(matched_eid)
+		item_eid = list(set(item_eid)) # Remove duplicates
 		item_md['external-identifier'] = item_eid
 	item_md['external_metadata_update'] = NOW
 	return item_md
 
-def update_metedata(results_map):
+def update_metadata(results_map):
 	for iaid, files_map in results_map.items():
 		if not contains_match(files_map):
 			continue

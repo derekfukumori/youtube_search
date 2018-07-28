@@ -33,136 +33,11 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-# def form_query(track, query_str):
-#     query = query_str.format(artist = track.artist, 
-#                              title = track.title, 
-#                              album_title = track.album_title)
-#     return query
-
-# def search_by_track(yt, track, query_fmt = '{artist} {title}'):
-#     """ Query YouTube for an individual track
-#     """
-#     query = form_query(track, query_fmt)
-#     results = yt.search(query, track.duration)
-#     results = videos_cull_by_duration(results, track.duration, duration_range=10)
-#     return results
-
-# def search_by_album(yt, album):
-#     """ Query YouTube for full-album videos
-#     """
-#     query = '{} {}'.format(album.artist, album.title)
-#     results = yt.search(query, album.duration)
-#     results = videos_cull_by_duration(results, album.duration, duration_range=120)
-#     return results
-
-# def fingerprint_ia_audio(track, length=120, remove_file=False):
-#     dl_path = track.download(destdir=IA_DL_DIR)
-#     fingerprint = fp.generate_fingerprint(dl_path, length=length)
-#     if remove_file:
-#         os.remove(dl_path)
-#     return fingerprint
-
-# def fingerprint_yt_audio(video, length=120, remove_file=False):
-#     dl_path = download_audio_file_ytdl(video['id'], YOUTUBE_DL_DIR)
-#     fingerprint = fp.generate_fingerprint(dl_path, length=length)
-#     if remove_file:
-#         os.remove(dl_path)
-#     return fingerprint
-
-# def match_full_album(yt, album, clear_cache=False):
-#     results = {}
-#     yt_results = search_by_album(yt, album)
-#     for v in yt_results:
-#         matches = {}
-
-#         try:
-#             reference_fp = fingerprint_yt_audio(v, length=v['duration']+1, 
-#                                                 remove_file=clear_cache)
-#         except FingerprintException:
-#             logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
-#             continue
-
-#         for track in album.tracks:
-#             matches[track.name] = None
-#             try:
-#                 query_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
-#             except FingerprintException:
-#                 logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
-#                 continue
-#             except DownloadException:
-#                 logger.warning('{}: Failed to download file "{}"'.format(album.identifier, track.name))
-#                 continue
-            
-#             match = fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.2)
-#             matches[track.name] = match if match else None
-#         # If at least half of the album's tracks produce a match, consider this 
-#         # video a potential match.
-#         if sum(bool(match) for match in matches.values())/len(album.tracks) >= 0.5:
-#             f = [t.ordinal for t in album.tracks]
-#             time_offsets = {}
-#             first_match = matches[album.tracks[0].name]
-#             time_offsets[album.tracks[0].name] = first_match.offset if first_match else 0
-#             ordered = True
-#             # Iterate through all tracks in album-order and ensure that their
-#             # respective time offsets are strictly increasing. If not, consider
-#             # this video an invalid match.
-#             for i in range(1,len(album.tracks)):
-#                 match = matches[album.tracks[i].name]
-#                 prev_offset = time_offsets[album.tracks[i-1].name]
-#                 curr_offset = match.offset if match else prev_offset + album.tracks[i-1].duration
-#                 if curr_offset < prev_offset:
-#                     ordered = False
-#                     break
-#                 time_offsets[album.tracks[i].name] = curr_offset
-
-#             if not ordered:
-#                 continue
-
-#             results['full_album'] = v['id']
-#             for track in album.tracks:
-#                 results[track.name] = '{0}&t={1}'.format(v['id'], 
-#                                        max(0, int(time_offsets[track.name])))
-
-#             break
-
-#     return results
-
-# def match_tracks(yt, album, tracks, query_fmt=None, clear_cache=False):
-#     results = {}
-#     for track in tracks:
-#         results[track.name] = ''
-#         if query_fmt:
-#             yt_results = search_by_track(yt, track, query_fmt)
-#         else:
-#             yt_results = search_by_track(yt, track)
-#         if not yt_results:
-#             continue
-#         try:
-#             reference_fp = fingerprint_ia_audio(track, remove_file=clear_cache)
-#         except FingerprintException:
-#             logger.warning('{}: Unable to fingerprint file "{}"'.format(album.identifier, track.name))
-#             continue
-#         except DownloadException:
-#             logger.warning('{}: Failed to download file "{}"'.format(album.identifier, track.name))
-#             continue
-#         for v in yt_results:
-#             try:
-#                 query_fp = fingerprint_yt_audio(v, remove_file=clear_cache)
-#             except FingerprintException:
-#                 logger.warning('{}: Unable to fingerprint YouTube video "{}"'.format(album.identifier, v['id']))
-#                 continue
-#             if fp.match_fingerprints(reference_fp, query_fp):
-#                 results[track.name] = v['id']
-#                 break
-#     return results
-
 def merge_results(main, sub, urn):
     for t in sub:
         if t not in main:
             main[t] = {}
         main[t][urn] = sub[t]
-    print(main)
-
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='')
@@ -279,29 +154,6 @@ if __name__=='__main__':
             merge_results(results[iaid], spotify_results, 'spotify')
 
 
-        # if args.search_full_album:
-        #     if args.search_youtube:
-        #         results[iaid] = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
-        #                                             yt_dir=YOUTUBE_DL_SUBDIR,
-        #                                             api_key=GOOGLE_API_KEYS)
-        #     if args.search_spotify:
-        #         pass
-
-        # if not results[iaid]:
-        #     if args.search_by_filename:
-        #         tracks = [album.track_map[filename]]
-        #     elif args.ignore_matched:
-        #         tracks = [t for t in album.tracks if not t.get_youtube_match()]
-        #     else:
-        #         tracks = album.tracks
-
-        #     results[iaid] = ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
-        #                          yt_dir=YOUTUBE_DL_SUBDIR, 
-        #                          api_key=GOOGLE_API_KEYS)
-        
-
-
-
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
             shutil.rmtree(YOUTUBE_DL_SUBDIR, ignore_errors=True)
@@ -314,12 +166,11 @@ if __name__=='__main__':
             try:
                 #TODO: Connection settings in archive config.
                 q = rq.Queue(connection=redis.Redis())
-                #q.enqueue(update_metadata, results)
+                q.enqueue(update_metadata, results)
             except redis.exceptions.ConnectionError():
                 logger.warning('No valid redis connection; uploading metadata directly.')
-                #update_metadata(results)
+                update_metadata(results)
         else:
-            pass
-            #update_metadata(results)
+            update_metadata(results)
 
     print(json.dumps(results))
