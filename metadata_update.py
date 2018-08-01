@@ -25,7 +25,7 @@ logger.addHandler(ch)
 # as well as '-' and '_'. If this changes in the future, this pattern will
 # need to change to accommodate.
 YOUTUBE_RE = re.compile('[a-zA-Z0-9\-\_]{11}(&t=\d+)?')
-SPOTIFY_RE = re.compile('[a-zA-Z0-9]{22}')
+SPOTIFY_RE = re.compile('(track|album):[a-zA-Z0-9]{22}')
 
 NOW = '{}Z'.format(arrow.now().isoformat().split('.')[0])
 
@@ -79,12 +79,12 @@ def get_updated_file_metadata(filename, matched_eids, item):
 	for source, eid in matched_eids.items():
 		# Validate that this is a supported external source
 		if not source in source_validators:
-			raise MetadataError('Invalid external source \'{}\' provided by {}/{}'.format(
-								source, item.identifier, filename))
+			raise MetadataException('Invalid external source \'{}\' provided by {}/{}'.format(
+									source, item.identifier, filename))
 		# Validate the identifier format for the given external source
 		if not source_validators[source](eid):
-			raise MetadataError('Invalid ID \'{}:{}\' provided by {}/{}'.format(
-								source, eid, item.identifier, filename))
+			raise MetadataException('Invalid ID \'{}:{}\' provided by {}/{}'.format(
+									source, eid, item.identifier, filename))
 
 		#TODO: Ask Jake whether multiple eids for the same source is intentional
 
