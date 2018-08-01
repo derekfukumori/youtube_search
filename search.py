@@ -1,6 +1,4 @@
 import sys
-import os
-import os.path
 import shutil
 import argparse
 import json
@@ -8,22 +6,15 @@ import internetarchive as ia
 from random import choice
 from urllib.parse import unquote
 from ytsearch.iametadata import *
-from ytsearch.youtube_search import YouTubeSearchManager
-from ytsearch.video_ranking import videos_cull_by_duration
-from ytsearch.youtube_download import download_audio_file_ytdl
 from ytsearch.exceptions import *
 from archiving.youtube_archiving import archiver_submit
 from metadata_update import update_metadata
-import audiofp.fingerprint as fp
-from audiofp.chromaprint.chromaprint import FingerprintException
 import redis
 import rq
 
-
-
 import youtube.match as ytmatch
-
-
+from spotify.match import SpotifyMatcher
+from spotipy.oauth2 import SpotifyClientCredentials
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -79,13 +70,12 @@ if __name__=='__main__':
 
     GOOGLE_API_KEYS = [key.strip() for key in \
                        config.get('ytsearch', {}).get('google_api_keys', '').split(',')]
+    
     YOUTUBE_DL_DIR = config.get('ytsearch', {}).get('youtube_dl_dir', 'tmp/ytdl')
     IA_DL_DIR = config.get('ytsearch', {}).get('ia_dl_dir', 'tmp/iadl')
     MAX_YOUTUBE_RESULTS = int(config.get('ytsearch', {}).get('max_youtube_results', 10))
-
-    yt = YouTubeSearchManager(choice(GOOGLE_API_KEYS),
-                              max_results=MAX_YOUTUBE_RESULTS,
-                              use_cache=False)
+    SPOTIFY_CREDENTIALS = SpotifyClientCredentials(*config.get('ytsearch', {}).get(
+                            'spotify_credentials', ':').split(':'))
 
     results = {}
 
@@ -107,7 +97,7 @@ if __name__=='__main__':
 
         YOUTUBE_DL_SUBDIR = '{}/{}'.format(YOUTUBE_DL_DIR, iaid)
 
-        results[iaid] = {}
+        results[iaid] = {t.name:{} for t in album.tracks}
 
         # YouTube
         if args.search_youtube:
@@ -132,21 +122,23 @@ if __name__=='__main__':
             # Submit results to the YouTube archiver endpoint
             vids = youtube_results['full_album'] if 'full_album' in youtube_results \
                                                  else list(youtube_results.values())
-            if args.use_redis_queue:
-                try:
-                    #TODO: Connection settings in archive config.
-                    q = rq.Queue(connection=redis.Redis())
-                    q.enqueue(archiver_submit, vids)
-                except redis.exceptions.ConnectionError():
+            if vids:
+                if args.use_redis_queue:
+                    try:
+                        #TODO: Connection settings in archive config.
+                        q = rq.Queue(connection=redis.Redis())
+                        q.enqueue(archiver_submit, vids)
+                    except redis.exceptions.ConnectionError():
+                        archiver_submit(vids)
+                else:
                     archiver_submit(vids)
-            else:
-                archiver_submit(vids)
 
         # Spotify
         if args.search_spotify:
             spotify_results = {}
+            spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
-                spotify_results = {}
+                spotify_results = spm.match_album(album)
             if not spotify_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
@@ -154,13 +146,10 @@ if __name__=='__main__':
                     pass
                     #TODO: pull spotify matches
                     #tracks = [t for t in album.tracks if not t.get_youtube_match()]
+                    tracks = album.tracks
                 else:
                     tracks = album.tracks
-
-                spotify_results = {}
-                # spotify_results = ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
-                #                                        yt_dir=YOUTUBE_DL_SUBDIR, 
-                #                                        api_key=GOOGLE_API_KEYS)
+                #spotify_results = spm.match_tracks(tracks, album)
             merge_results(results[iaid], spotify_results, 'spotify')
 
 
