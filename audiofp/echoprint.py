@@ -17,7 +17,7 @@ def generate_fingerprint(audio_file, length=120):
 		# proc = subprocess.run(['fpcalc', '-raw', '-plain', audio_file, '-length', str(ceil(length)), '-overlap'], 
 		# 	   stdout=subprocess.PIPE, encoding='ascii', check=True)
 		proc = subprocess.run(['echoprint-codegen', audio_file], 
-							  stdout=subprocess.PIPE, encoding='ascii', check=True)
+							  stdout=subprocess.PIPE, encoding='UTF-8', check=True)
 	except subprocess.CalledProcessError:
 		raise FingerprintException()
 	
