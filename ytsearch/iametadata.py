@@ -4,6 +4,7 @@ import re
 import enum
 import os
 from os.path import splitext
+from copy import copy
 from ytsearch.exceptions import *
 from requests.exceptions import ConnectionError
 from requests.exceptions import ReadTimeout
@@ -109,15 +110,12 @@ class IATrack:
             elif ftype in self.derivatives:
                 return self.derivatives[ftype]
 
-    def get_youtube_match(self):
-        extid = self.metadata.get('external-identifier', None)
-        if isinstance(extid, list):
-            for e in extid:
-                if 'urn:youtube' in e:
-                    return e
-        elif isinstance(extid, str):
-            if 'urn:youtube' in extid:
-                return extid 
+    def get_eid(self, eid_source):
+        eids = copy(self.metadata['external-identifier'])
+        eids = eids if isinstance(eids, list) else [eids]
+        for eid in eids:
+            if eid.startswith('urn:{}'.format(eid_source)):
+                return eid.split(':', 2)[-1]
         return None
 
     def download(self, destdir='.'):
@@ -166,10 +164,6 @@ class IAAlbum:
 
         self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
-
-        # self.tracks = [IATrack(self, file_md) for file_md in self.item.files
-        #                if file_md['source'] == 'original'
-        #                and filename_to_audio_filetype(file_md['name'])]
         self.tracks = []
         for file_md in self.item.files:
             if file_md['source'] == 'original' and filename_to_audio_filetype(file_md['name']):
@@ -196,3 +190,11 @@ class IAAlbum:
         # The current workaround is to pull the album title from file metadata.
         self.title = self.tracks[0].album_title
         self.duration = sum(track.duration for track in self.tracks)
+
+    def get_eid(self, eid_source):
+        eids = copy(self.item.item_metadata['metadata']['external-identifier'])
+        eids = eids if isinstance(eids, list) else [eids]
+        for eid in eids:
+            if eid.startswith('urn:{}'.format(eid_source)):
+                return eid.split(':', 2)[-1]
+        return None

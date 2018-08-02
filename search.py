@@ -52,11 +52,12 @@ if __name__=='__main__':
                         action='store_true', default=False, 
                         help='Remove downloaded audio files after fingerprint comparison')
     parser.add_argument('-i', '--ignore_matched', dest='ignore_matched',
-                        action='store_true', default=False, 
-                        help='Skip tracks that have YouTube identifiers in their metadata')
+                        action='store_true', default=False,
+                        help='Skip matches (track or full-album) that have the \
+                        corresponding external identifiers in their metadata')
     parser.add_argument('-q', '--query_format', dest='query_format',
                         metavar='QUERY_FORMAT', default=None)
-    parser.add_argument('-d', '--dry_run', dest='dry_run', 
+    parser.add_argument('-d', '--dry_run', dest='dry_run',
                         action='store_true', default=False,
                         help='Bypass writing metadata to the Archive')
     parser.add_argument('-rq', '--use_redis_queue', dest='use_redis_queue',
@@ -101,16 +102,17 @@ if __name__=='__main__':
 
         # YouTube
         if args.search_youtube:
-            youtube_results = {}          
+            youtube_results = {}
             if args.search_full_album:
-                youtube_results = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
-                                                      yt_dir=YOUTUBE_DL_SUBDIR,
-                                                      api_key=GOOGLE_API_KEYS)
+                if args.ignore_matched and not album.get_eid('youtube'):
+                    youtube_results = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
+                                                          yt_dir=YOUTUBE_DL_SUBDIR,
+                                                          api_key=GOOGLE_API_KEYS)
             if not youtube_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
                 elif args.ignore_matched:
-                    tracks = [t for t in album.tracks if not t.get_youtube_match()]
+                    tracks = [t for t in album.tracks if not t.get_eid('youtube')]
                 else:
                     tracks = album.tracks
 
@@ -138,18 +140,16 @@ if __name__=='__main__':
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
-                spotify_results = spm.match_album(album)
+                if args.ignore_matched and not album.get_eid('spotify'):
+                    spotify_results = spm.match_album(album)
             if not spotify_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
                 elif args.ignore_matched:
-                    pass
-                    #TODO: pull spotify matches
-                    #tracks = [t for t in album.tracks if not t.get_youtube_match()]
-                    tracks = album.tracks
+                    tracks = [t for t in album.tracks if not t.get_eid('spotify')]
                 else:
                     tracks = album.tracks
-                #spotify_results = spm.match_tracks(tracks, album)
+                spotify_results = spm.match_tracks(tracks, album)
             merge_results(results[iaid], spotify_results, 'spotify')
 
 
