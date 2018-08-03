@@ -111,7 +111,7 @@ class IATrack:
                 return self.derivatives[ftype]
 
     def get_eid(self, eid_source):
-        eids = copy(self.metadata['external-identifier'])
+        eids = copy(self.metadata.get('external-identifier', []))
         eids = eids if isinstance(eids, list) else [eids]
         for eid in eids:
             if eid.startswith('urn:{}'.format(eid_source)):
@@ -192,7 +192,7 @@ class IAAlbum:
         self.duration = sum(track.duration for track in self.tracks)
 
     def get_eid(self, eid_source):
-        eids = copy(self.item.item_metadata['metadata']['external-identifier'])
+        eids = copy(self.item.item_metadata['metadata'].get('external-identifier', []))
         eids = eids if isinstance(eids, list) else [eids]
         for eid in eids:
             if eid.startswith('urn:{}'.format(eid_source)):

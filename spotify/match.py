@@ -32,7 +32,8 @@ class SpotifyMatcher:
 					#TODO exceptions
 					ia_fp_map[t] = fp.generate_fingerprint(t.download(destdir=self.ia_dir))
 				
-				match = self.match_against(ia_fp_map[t], self.fingerprint_gen(sp_track_ids))
+				match = self.match_against(ia_fp_map[t], self.fingerprint_gen(sp_track_ids),
+										   match_threshold=0.2)
 				
 				if not match:
 					break
@@ -59,9 +60,10 @@ class SpotifyMatcher:
 				results[track.name] = 'track:{}'.format(match)
 		return results
 
-	def match_against(self, query_fp, sp_fp_gen):
+	def match_against(self, query_fp, sp_fp_gen, match_threshold=0.25):
 		for track_id, reference_fp in sp_fp_gen:
-			if fp.match_fingerprints(reference_fp, query_fp, match_threshold=0.25):
+			if fp.match_fingerprints(reference_fp, query_fp, 
+									 match_threshold=match_threshold):
 				return track_id
 		return None
 

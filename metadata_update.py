@@ -69,12 +69,43 @@ def contains_match(files_map):
 			return True
 	return False
 
-def to_list(eid):
-	return eid if isinstance(eid, list) else [eid]
+def to_list(x):
+	return x if isinstance(x, list) else [x]
 
 def get_updated_file_metadata(filename, matched_eids, item):
+
+	# external-identifier formatting:
+	# - All URNs for a given source should be grouped.
+	# - Such groups should appear in alphabetical order by source name
+	#   (e.g. urn:spotify:*, urn:youtube:*)
+	# - URNs within a given group should be in descending order by match date.
+	# - Dates in external-identifier-match-date should follow the same pattern,
+	#   such that the date at index i of external-identifier-match-date
+	#   corresponds to the match date of the resource at external-identifier[i]
+
+	# The following is a bit kludgy, but handles eids/dates that don't
+	# already conform to the described ordering.
+
 	file_eid = to_list(copy(item.get_file(filename).__dict__.get('external-identifier', list())))
 	file_eid_match_date = to_list(copy(item.get_file(filename).__dict__.get( 'external-identifier-match-date', list())))
+	
+	file_eid_map = {}
+	file_eid_date_map = {}
+	
+	for e in file_eid:
+		s = e.split(':')[1] # source name, without the preceding 'urn:'
+		if s in file_eid_map:
+			file_eid_map[s].append(e)
+		else:
+			file_eid_map[s] = [e]
+	
+	for d in file_eid_match_date:
+		s = d.split(':')[0]
+		if s in file_eid_date_map:
+			file_eid_date_map[s].append(d)
+		else:
+			file_eid_date_map[s] = [d]
+
 	updated = False
 	for source, eid in matched_eids.items():
 		# Validate that this is a supported external source
@@ -86,22 +117,34 @@ def get_updated_file_metadata(filename, matched_eids, item):
 			raise MetadataException('Invalid ID \'{}:{}\' provided by {}/{}'.format(
 									source, eid, item.identifier, filename))
 
-		#TODO: Ask Jake whether multiple eids for the same source is intentional
-
-
 		matched_eid = 'urn:{}:{}'.format(source, eid)
+		match_date = '{}:{}'.format(source, NOW)
 
 		if matched_eid in file_eid:
 			continue
+		
+		if source in file_eid_map:
+			file_eid_map[source].insert(0, matched_eid)
+		else:
+			file_eid_map[source] = [matched_eid]
+		
+		if source in file_eid_date_map:
+			file_eid_date_map[source].insert(0, match_date)
+		else:
+			file_eid_date_map[source] = [match_date]
 
-		file_eid.append(matched_eid)
-		file_eid = list(set(file_eid)) # Remove duplicates
-		file_eid_match_date = [x for x in file_eid_match_date if not x.startswith(source)]
-		file_eid_match_date.append('{}:{}'.format(source, NOW))
 		updated = True
+
 	if updated:
-		return { 'external-identifier': file_eid,
-				 'external-identifier-match-date': file_eid_match_date }
+		updated_file_eid = []
+		updated_file_eid_match_date = []
+		for s in sorted(list(file_eid_map.keys())):
+			updated_file_eid.extend(file_eid_map[s])
+		for s in sorted(list(file_eid_date_map.keys())):
+			updated_file_eid_match_date.extend(file_eid_date_map[s])
+
+		return { 'external-identifier': updated_file_eid,
+				 'external-identifier-match-date': updated_file_eid_match_date }
 	return None
 
 def get_updated_item_metadata(matched_eids, item):
