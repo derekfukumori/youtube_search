@@ -8,7 +8,7 @@ from urllib.parse import unquote
 from ytsearch.iametadata import *
 from ytsearch.exceptions import *
 from archiving.youtube_archiving import archiver_submit
-from metadata_update import update_metadata
+from metadata.metadata_update import update_metadata
 import redis
 import rq
 

@@ -18,8 +18,6 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-
-
 # Note: YouTube does not have a strict definition of video id formatting.
 # Currently, it's 11 characters long, consisting of alphanumeric characters,
 # as well as '-' and '_'. If this changes in the future, this pattern will
