@@ -24,11 +24,44 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-def merge_results(main, sub, urn):
+def insert_matches(main, sub, source):
     for t in sub:
         if t not in main:
             main[t] = {}
-        main[t][urn] = sub[t]
+        main[t][source] = sub[t]
+
+def get_existing_matches(album):
+    m = {t.name:{} for t in album.tracks}
+    for src in ['spotify', 'youtube']:
+        match = album.get_eid(src)
+        if match:
+            if not 'full_album' in m:
+                m['full_album'] = {}
+            m['full_album'][src] = match
+    for t in album.tracks:
+        for src in ['spotify', 'youtube']:
+            match = t.get_eid(src)
+            if match:
+                m[t.name][src] = match
+    return m
+
+def to_list(x):
+    return x if isinstance(x, list) else [x]
+
+def merge_dicts(a, b, path=None):
+    "Merges b into a"
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_dicts(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass
+            else:
+                a[key] = to_list(a[key]) + to_list(b[key])
+        else:
+            a[key] = b[key]
+    return a
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='')
@@ -79,6 +112,7 @@ if __name__=='__main__':
                             'spotify_credentials', ':').split(':'))
 
     results = {}
+    existing_matches = {}
 
     for entry in args.entries:
         if args.search_by_filename:
@@ -100,6 +134,9 @@ if __name__=='__main__':
 
         results[iaid] = {t.name:{} for t in album.tracks}
 
+        # Retrieve existing matches for anayltics purposes
+        existing_matches[iaid] = get_existing_matches(album)
+
         # YouTube
         if args.search_youtube:
             youtube_results = {}
@@ -119,7 +156,7 @@ if __name__=='__main__':
                 youtube_results = ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
                                                        yt_dir=YOUTUBE_DL_SUBDIR, 
                                                        api_key=GOOGLE_API_KEYS)
-            merge_results(results[iaid], youtube_results, 'youtube')
+            insert_matches(results[iaid], youtube_results, 'youtube')
 
             # Submit results to the YouTube archiver endpoint
             vids = youtube_results['full_album'] if 'full_album' in youtube_results \
@@ -134,6 +171,7 @@ if __name__=='__main__':
                         archiver_submit(vids)
                 else:
                     archiver_submit(vids)
+
 
         # Spotify
         if args.search_spotify:
@@ -150,7 +188,7 @@ if __name__=='__main__':
                 else:
                     tracks = album.tracks
                 spotify_results = spm.match_tracks(tracks, album)
-            merge_results(results[iaid], spotify_results, 'spotify')
+            insert_matches(results[iaid], spotify_results, 'spotify')
 
 
         if args.clear_audio_cache:
@@ -169,4 +207,5 @@ if __name__=='__main__':
         else:
             update_metadata(results)
 
-    print(json.dumps(results))
+    #print(json.dumps(results))
+    print(json.dumps(merge_dicts(existing_matches, results)))
