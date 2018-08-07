@@ -88,8 +88,10 @@ if __name__=='__main__':
                         action='store_true', default=False,
                         help='Skip matches (track or full-album) that have the \
                         corresponding external identifiers in their metadata')
-    parser.add_argument('-q', '--query_format', dest='query_format',
-                        metavar='QUERY_FORMAT', default=None)
+    parser.add_argument('-aq' '--album_query_format', dest='album_query_format',
+                        metavar='ALBUM_QUERY_FORMAT', default='{artist} {title}')
+    parser.add_argument('-tq' '--track_query_format', dest='track_query_format',
+                        metavar='TRACK_QUERY_FORMAT', default='{artist} {title}')
     parser.add_argument('-d', '--dry_run', dest='dry_run',
                         action='store_true', default=False,
                         help='Bypass writing metadata to the Archive')
@@ -144,7 +146,8 @@ if __name__=='__main__':
                 if not args.ignore_matched or (args.ignore_matched and not album.get_eid('youtube')):
                     youtube_results = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
                                                           yt_dir=YOUTUBE_DL_SUBDIR,
-                                                          api_key=GOOGLE_API_KEYS)
+                                                          api_key=GOOGLE_API_KEYS,
+                                                          query_fmt=args.album_query_format)
             if not youtube_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
@@ -155,7 +158,8 @@ if __name__=='__main__':
 
                 youtube_results = ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
                                                        yt_dir=YOUTUBE_DL_SUBDIR, 
-                                                       api_key=GOOGLE_API_KEYS)
+                                                       api_key=GOOGLE_API_KEYS,
+                                                       query_fmt=args.track_query_format)
             insert_matches(results[iaid], youtube_results, 'youtube')
 
             # Submit results to the YouTube archiver endpoint
@@ -179,7 +183,7 @@ if __name__=='__main__':
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
                 if not args.ignore_matched or (args.ignore_matched and not album.get_eid('spotify')):
-                    spotify_results = spm.match_album(album)
+                    spotify_results = spm.match_album(album, query_fmt=args.album_query_format)
             if not spotify_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
@@ -187,7 +191,7 @@ if __name__=='__main__':
                     tracks = [t for t in album.tracks if not t.get_eid('spotify')]
                 else:
                     tracks = album.tracks
-                spotify_results = spm.match_tracks(tracks, album)
+                spotify_results = spm.match_tracks(tracks, album, query_fmt=args.track_query_format)
             insert_matches(results[iaid], spotify_results, 'spotify')
 
 

@@ -93,6 +93,7 @@ class IATrack:
         self.orig_filetype = filename_to_audio_filetype(self.name)
         self.title = metadata['title']
         self.artist = metadata['artist'] if 'artist' in metadata else metadata['creator']
+        self.creator = metadata.get('creator', '')
         self.album_title = metadata['album']
         self.duration = get_track_duration(metadata)
         self.ordinal = get_track_ordinal(metadata)
@@ -164,6 +165,7 @@ class IAAlbum:
 
         self.identifier = iaid
         self.artist = get_item_artist(self.item.item_metadata['metadata'])
+        self.creator = self.item.item_metadata['metadata'].get('creator', '')
         self.tracks = []
         for file_md in self.item.files:
             if file_md['source'] == 'original' and filename_to_audio_filetype(file_md['name']):

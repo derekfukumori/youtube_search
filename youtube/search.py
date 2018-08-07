@@ -58,13 +58,15 @@ def search(query, expected_duration='any', api_key=''):
 
 def search_by_track(track, query_fmt='{artist} {title}', api_key=''):
 	query = query_fmt.format(artist = track.artist, 
-							 title = track.title, 
+							 title = track.title,
+							 creator = track.creator,
 							 album_title = track.album_title)
 	return search(query, expected_duration=get_expected_duration(track.duration),
 				  api_key=api_key)
 
 def search_by_album(album, query_fmt='{artist} {title}', api_key=''):
 	query = query_fmt.format(artist = album.artist, 
-							 title = album.title)
+							 title = album.title,
+							 creator = album.creator)
 	return search(query, expected_duration=get_expected_duration(album.duration),
 				  api_key=api_key)

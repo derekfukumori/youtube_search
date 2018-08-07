@@ -11,7 +11,8 @@ class SpotifyMatcher:
 
 	def match_album(self, album, query_fmt='{artist} {title}'):
 		query = query_fmt.format(artist = album.artist,
-							 	 title = album.title)
+							 	 title = album.title,
+							 	 creator = album.creator)
 		r = self.client.search(query, type='album')
 
 		ia_fp_map = {}
@@ -50,7 +51,8 @@ class SpotifyMatcher:
 		results ={}
 		for track in tracks:
 			query = query_fmt.format(artist = track.artist,
-							 	 	 title = track.title)
+							 	 	 title = track.title,
+							 	 	 creator = track.creator)
 			r = self.client.search(query, type='track', limit=10)
 			sp_track_ids = [t['id'] for t in r['tracks']['items']]
 			#TODO exceptions
