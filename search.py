@@ -141,7 +141,7 @@ if __name__=='__main__':
         if args.search_youtube:
             youtube_results = {}
             if args.search_full_album:
-                if args.ignore_matched and not album.get_eid('youtube'):
+                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('youtube')):
                     youtube_results = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
                                                           yt_dir=YOUTUBE_DL_SUBDIR,
                                                           api_key=GOOGLE_API_KEYS)
@@ -178,7 +178,7 @@ if __name__=='__main__':
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
-                if args.ignore_matched and not album.get_eid('spotify'):
+                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('spotify')):
                     spotify_results = spm.match_album(album)
             if not spotify_results:
                 if args.search_by_filename:
