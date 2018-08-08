@@ -146,16 +146,46 @@ def get_updated_file_metadata(filename, matched_eids, item):
 	return None
 
 def get_updated_item_metadata(matched_eids, item):
-	item_md = dict()
+	item_md = {'external_metadata_update': NOW}
 	item_eid = to_list(copy(item.metadata.get('external-identifier', list())))
+	item_eid_map = {}
+
+	for e in item_eid:
+		s = e.split(':')[1] # source name, without the preceding 'urn:'
+		if s in item_eid_map:
+			item_eid_map[s].append(e)
+		else:
+			item_eid_map[s] = [e]
+
+	updated = False
 	for source, eid in matched_eids.items():
+		# Validate that this is a supported external source
+		if not source in source_validators:
+			raise MetadataException('Invalid external source \'{}\' provided by {}'.format(
+									source, item.identifier))
+		# Validate the identifier format for the given external source
+		if not source_validators[source](eid):
+			raise MetadataException('Invalid ID \'{}:{}\' provided by {}'.format(
+									source, eid, item.identifier))
+
 		matched_eid = 'urn:{}:{}'.format(source, eid)
+		
 		if matched_eid in item_eid:
 			continue
-		item_eid.append(matched_eid)
-		item_eid = list(set(item_eid)) # Remove duplicates
-		item_md['external-identifier'] = item_eid
-	item_md['external_metadata_update'] = NOW
+
+		if source in item_eid_map:
+			item_eid_map[source].insert(0, matched_eid)
+		else:
+			item_eid_map[source] = [matched_eid]
+
+		updated = True
+
+	if updated:
+		updated_item_eid = []
+		for s in sorted(list(item_eid_map.keys())):
+			updated_item_eid.extend(item_eid_map[s])
+		item_md['external-identifier'] = updated_item_eid
+
 	return item_md
 
 def update_metadata(results_map):
