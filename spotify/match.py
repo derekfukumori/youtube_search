@@ -39,7 +39,21 @@ class SpotifyMatcher:
 			logger.debug('\tTitle:     {}'.format(sp_album['name']))
 
 			matches = {}
-			sp_tracks = self.client.album_tracks(sp_album['id'])['items']
+			sp_tracks = []
+
+			# Spotify returns at most 50 tracks at a time; for albums with more
+			# than 50 tracks, we have to iterate.
+			for _ in range(50):
+				qr = self.client.album_tracks(sp_album['id'], offset=len(sp_tracks))
+				sp_tracks.extend(qr['items'])
+				if len(sp_tracks) == sp_album['total_tracks']:
+					break
+				elif len(sp_tracks) > sp_album['total_tracks']:
+					#TODO: more meaningful exception
+					raise Exception("Unexpected number of Spotify tracks returned")
+			else:
+				#TODO: more meaningful exception
+				raise Exception('Could not retrieve Spotify tracks')
 
 			# This is a very imperfect method of preventing singles from matching
 			# against full albums. 
