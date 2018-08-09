@@ -24,7 +24,7 @@ def generate_fingerprint(audio_file, length=120):
 	res = json.loads(proc.stdout.strip())
 	return res[0]['code']
 
-def match_fingerprints(reference_fp, query_fp, match_threshold=0.3):
+def compare_fingerprints(reference_fp, query_fp, match_threshold=0.3):
 	reference_offsets, reference_codes = decode_echoprint(reference_fp)
 	query_offsets, query_codes = decode_echoprint(query_fp)
 
@@ -32,7 +32,7 @@ def match_fingerprints(reference_fp, query_fp, match_threshold=0.3):
 	query_codeset = set(query_codes)
 	
 	rating = len(reference_codeset.intersection(query_codeset)) / len(reference_codeset)
-	return rating > match_threshold
+	return rating
 
 
 def split_seq(iterable, size):

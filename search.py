@@ -99,8 +99,13 @@ if __name__=='__main__':
                         action='store_true', default=False,
                         help='Upload metadata asynchronously via redis Queue.\
                               Requires a running redis server.')
+    parser.add_argument('-v', '--verbose', dest='verbose',
+                        action='store_true', default=False)
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.getLogger('spotify-match').setLevel(logging.DEBUG)
 
     config = ia.config.get_config(config_file=args.config_file)
 
