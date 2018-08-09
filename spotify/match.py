@@ -39,7 +39,7 @@ class SpotifyMatcher:
 			logger.debug('\tTitle:     {}'.format(sp_album['name']))
 
 			matches = {}
-			sp_tracks = [t for t in self.client.album_tracks(sp_album['id'])['items']]
+			sp_tracks = self.client.album_tracks(sp_album['id'])['items']
 
 			# This is a very imperfect method of preventing singles from matching
 			# against full albums. 
