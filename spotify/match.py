@@ -14,6 +14,9 @@ formatter = logging.Formatter('[%(name)s]: %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+def in_duration_range(sp_track, expected_duration, duration_range=20):
+    return abs(sp_track['duration_ms']/1000 - expected_duration) < duration_range
+
 class SpotifyMatcher:
 	def __init__(self, credentials, ia_dir='.'):
 		self.client = spotipy.Spotify(client_credentials_manager=credentials)
@@ -70,9 +73,12 @@ class SpotifyMatcher:
 					#TODO exceptions
 					dl_path = ia_track.download(destdir=self.ia_dir)
 					self.ia_fp_cache[ia_track] = fp.generate_fingerprint(dl_path)
-				
+
+				# Cull the comparison set by duration range
+				query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
+
 				matched_track = self.match_against(self.ia_fp_cache[ia_track],
-										   		   self.fingerprint_gen(sp_tracks),
+										   		   self.fingerprint_gen(query_tracks),
 										   		   match_threshold=0.15,
 										   		   short_circuit=False)
 				
@@ -105,6 +111,8 @@ class SpotifyMatcher:
 			r = self.client.search(query, type='track', limit=10)
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
 			sp_tracks = [t for t in r['tracks']['items']]
+			# Cull the comparison set by duration range
+			query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
 			#TODO exceptions
 			dl_path = ia_track.download(destdir=self.ia_dir)
 			query_fp = fp.generate_fingerprint(dl_path)
@@ -136,7 +144,8 @@ class SpotifyMatcher:
 		for t in sp_tracks:
 			#TODO: exceptions
 			if t['id'] not in self.sp_fp_cache:
-				self.sp_fp_cache[t['id']] = self.client.audio_analysis(t['id'])['track']['echoprintstring']
+				echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
+				self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
 			yield t, self.sp_fp_cache[t['id']]
 
 	# def get_spotify_fingerprint_map(self, sp_tracks):

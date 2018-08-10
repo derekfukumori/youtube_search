@@ -8,6 +8,11 @@ import json
 
 from time import time
 
+class Echoprint:
+	def __init__(self, codes, offsets):
+		self.codes = codes
+		self.offsets = offsets
+
 class FingerprintException(Exception):
 	pass
 
@@ -22,14 +27,11 @@ def generate_fingerprint(audio_file, length=120):
 		raise FingerprintException()
 	
 	res = json.loads(proc.stdout.strip())
-	return res[0]['code']
+	return decode_echoprint_string(res[0]['code'])
 
 def compare_fingerprints(reference_fp, query_fp, match_threshold=0.3):
-	reference_offsets, reference_codes = decode_echoprint(reference_fp)
-	query_offsets, query_codes = decode_echoprint(query_fp)
-
-	reference_codeset = set(reference_codes)
-	query_codeset = set(query_codes)
+	reference_codeset = set(reference_fp.codes)
+	query_codeset = set(query_fp.codes)
 	
 	rating = len(reference_codeset.intersection(query_codeset)) / len(reference_codeset)
 	return rating
@@ -42,7 +44,7 @@ def split_seq(iterable, size):
 		yield item
 		item = list(itertools.islice(it, size))
 
-def decode_echoprint(echoprint_b64_zipped):
+def decode_echoprint_string(echoprint_b64_zipped):
 	'''
 	Decode an echoprint string as output by `echoprint-codegen`.
 	The function returns offsets and codes as list of integers.
@@ -54,4 +56,4 @@ def decode_echoprint(echoprint_b64_zipped):
 
 	offsets = [int(''.join(o), 16) for o in split_seq(unzipped[:int(N/2)], 5)]
 	codes = [int(''.join(o), 16) for o in split_seq(unzipped[int(N/2):], 5)]
-	return offsets, codes
+	return Echoprint(codes, offsets)
