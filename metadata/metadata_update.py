@@ -53,8 +53,8 @@ def write_metadata(item, md, target='metadata'):
 																   target))
 			return False
 		else:
-			logger.warning('{}/{} failed, retrying. {} retries left.'.format(
-				item.identifier, target, retries))
+			logger.warning('{}/{} failed, retrying. {} retries left. Status: {}'.format(
+				item.identifier, target, retries, r))
 			sleep(1)
 
 	logger.error('{}/{} failed to update - {}'.format(item.identifier, target,
