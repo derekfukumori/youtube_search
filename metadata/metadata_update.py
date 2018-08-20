@@ -6,6 +6,7 @@ import re
 import ujson as json
 from internetarchive import get_item
 import arrow
+from metadata.util import *
 from ytsearch.exceptions import *
 
 logger = logging.getLogger("metadata_update")
@@ -36,6 +37,12 @@ def verify_spotify_id(eid):
 
 source_validators = {'youtube':verify_youtube_id, 'spotify':verify_spotify_id}
 
+def contains_match(files_map):
+	for f in files_map:
+		if files_map[f]:
+			return True
+	return False
+
 def write_metadata(item, md, target='metadata'):
 	retries = 50
 	while retries > 0:
@@ -61,15 +68,6 @@ def write_metadata(item, md, target='metadata'):
 													  r.content))
 	raise MetadataUpdateError('{}/{}'.format(item.identifier, target))
 
-def contains_match(files_map):
-	for f in files_map:
-		if files_map[f]:
-			return True
-	return False
-
-def to_list(x):
-	return x if isinstance(x, list) else [x]
-
 def get_updated_file_metadata(filename, matched_eids, item):
 
 	# external-identifier formatting:
@@ -84,25 +82,8 @@ def get_updated_file_metadata(filename, matched_eids, item):
 	# The following is a bit kludgy, but handles eids/dates that don't
 	# already conform to the described ordering.
 
-	file_eid = to_list(copy(item.get_file(filename).__dict__.get('external-identifier', list())))
-	file_eid_match_date = to_list(copy(item.get_file(filename).__dict__.get( 'external-identifier-match-date', list())))
-	
-	file_eid_map = {}
-	file_eid_date_map = {}
-	
-	for e in file_eid:
-		s = e.split(':')[1] # source name, without the preceding 'urn:'
-		if s in file_eid_map:
-			file_eid_map[s].append(e)
-		else:
-			file_eid_map[s] = [e]
-	
-	for d in file_eid_match_date:
-		s = d.split(':')[0]
-		if s in file_eid_date_map:
-			file_eid_date_map[s].append(d)
-		else:
-			file_eid_date_map[s] = [d]
+	file_eid_map = get_eid_map(item, filename)
+	file_eid_date_map = get_eid_date_map(item, filename)
 
 	updated = False
 	for source, eid in matched_eids.items():
@@ -118,7 +99,7 @@ def get_updated_file_metadata(filename, matched_eids, item):
 		matched_eid = 'urn:{}:{}'.format(source, eid)
 		match_date = '{}:{}'.format(source, NOW)
 
-		if matched_eid in file_eid:
+		if matched_eid in file_eid_map.get(source, list()):
 			continue
 		
 		if source in file_eid_map:
@@ -134,12 +115,8 @@ def get_updated_file_metadata(filename, matched_eids, item):
 		updated = True
 
 	if updated:
-		updated_file_eid = []
-		updated_file_eid_match_date = []
-		for s in sorted(list(file_eid_map.keys())):
-			updated_file_eid.extend(file_eid_map[s])
-		for s in sorted(list(file_eid_date_map.keys())):
-			updated_file_eid_match_date.extend(file_eid_date_map[s])
+		updated_file_eid = map_to_list(file_eid_map)
+		updated_file_eid_match_date = map_to_list(file_eid_date_map)
 
 		return { 'external-identifier': updated_file_eid,
 				 'external-identifier-match-date': updated_file_eid_match_date }
@@ -147,15 +124,7 @@ def get_updated_file_metadata(filename, matched_eids, item):
 
 def get_updated_item_metadata(matched_eids, item):
 	item_md = {'external_metadata_update': NOW}
-	item_eid = to_list(copy(item.metadata.get('external-identifier', list())))
-	item_eid_map = {}
-
-	for e in item_eid:
-		s = e.split(':')[1] # source name, without the preceding 'urn:'
-		if s in item_eid_map:
-			item_eid_map[s].append(e)
-		else:
-			item_eid_map[s] = [e]
+	item_eid_map = get_eid_map(item)
 
 	updated = False
 	for source, eid in matched_eids.items():
@@ -170,7 +139,7 @@ def get_updated_item_metadata(matched_eids, item):
 
 		matched_eid = 'urn:{}:{}'.format(source, eid)
 		
-		if matched_eid in item_eid:
+		if matched_eid in item_eid_map.get(source, list()):
 			continue
 
 		if source in item_eid_map:
@@ -181,9 +150,7 @@ def get_updated_item_metadata(matched_eids, item):
 		updated = True
 
 	if updated:
-		updated_item_eid = []
-		for s in sorted(list(item_eid_map.keys())):
-			updated_item_eid.extend(item_eid_map[s])
+		updated_item_eid = map_to_list(item_eid_map)
 		item_md['external-identifier'] = updated_item_eid
 
 	return item_md
