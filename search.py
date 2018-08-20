@@ -9,6 +9,7 @@ from ytsearch.iametadata import *
 from ytsearch.exceptions import *
 from archiving.youtube_archiving import archiver_submit
 from metadata.metadata_update import update_metadata
+from metadata.util import to_list
 import redis
 import rq
 
@@ -44,9 +45,6 @@ def get_existing_matches(album):
             if match:
                 m[t.name][src] = match
     return m
-
-def to_list(x):
-    return x if isinstance(x, list) else [x]
 
 def merge_dicts(a, b, path=None):
     "Merges b into a"

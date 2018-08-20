@@ -2,14 +2,12 @@ import sys
 import arrow
 import internetarchive as ia
 from metadata import metadata_update
+from metadata.util import to_list
 
 # The external-identifier-match-date field was added in June 2018.
 # Mark all spotify and youtube matches without a date (i.e. added
 # before June 2018) as being from 2018-05-01
 DUMMY_DATE = '2018-05-01T00:00:00Z'
-
-def to_list(x):
-	return x if isinstance(x, list) else [x]
 
 item = ia.get_item(sys.argv[-1])
 for f in item.files:
