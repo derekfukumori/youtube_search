@@ -5,7 +5,7 @@ import json
 import internetarchive as ia
 from random import choice
 from urllib.parse import unquote
-from ytsearch.iametadata import *
+from metadata.music_metadata import *
 from ytsearch.exceptions import *
 from archiving.youtube_archiving import archiver_submit
 from metadata.metadata_update import update_metadata
