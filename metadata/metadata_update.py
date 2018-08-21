@@ -7,7 +7,7 @@ import ujson as json
 from internetarchive import get_item
 import arrow
 from metadata.util import *
-from ytsearch.exceptions import *
+from exceptions import *
 
 logger = logging.getLogger("metadata_update")
 logger.setLevel(logging.INFO)

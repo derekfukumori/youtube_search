@@ -5,7 +5,7 @@ import enum
 import os
 from os.path import splitext
 from copy import copy
-from ytsearch.exceptions import *
+from exceptions import *
 from requests.exceptions import ConnectionError
 from requests.exceptions import ReadTimeout
 
