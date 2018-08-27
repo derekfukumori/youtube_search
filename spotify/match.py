@@ -117,6 +117,7 @@ class SpotifyMatcher:
 			dl_path = ia_track.download(destdir=self.ia_dir)
 			query_fp = fp.generate_fingerprint(dl_path)
 			matched_track = self.match_against(query_fp, self.fingerprint_gen(query_tracks))
+			
 			if matched_track:
 				results[ia_track.name] = 'track:{}'.format(matched_track['id'])
 		return results
@@ -126,6 +127,11 @@ class SpotifyMatcher:
 		best_match_rating = 0
 
 		for sp_track, reference_fp in sp_fp_gen:
+			if reference_fp == None:
+				# reference_fp will be None if we were unable to pull audio analysis
+				# for the given Spotify track -- see the note in fingerprint_gen().
+				logger.warning('Warning: No fingerprint exists for track {}, skipping.'.format(sp_track['id']))
+				continue
 			match_rating = fp.compare_fingerprints(reference_fp, query_fp)
 			#logger.debug('\t\t- Matching against: {}\tRating: {}'.format(sp_track['uri'], match_rating))
 
@@ -144,8 +150,14 @@ class SpotifyMatcher:
 		for t in sp_tracks:
 			#TODO: exceptions
 			if t['id'] not in self.sp_fp_cache:
-				echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
-				self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
+				try:
+					echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
+					self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
+				except spotipy.client.SpotifyException as e:
+					# If audio analysis for this track can't be retrieved, 
+					# cache the fingerprint as None.
+					logger.warning('Warning: unable to retrieve audio analysis for track {}: {}'.format(t['id'], e))
+					self.sp_fp_cache[t['id']] = None
 			yield t, self.sp_fp_cache[t['id']]
 
 	# def get_spotify_fingerprint_map(self, sp_tracks):
