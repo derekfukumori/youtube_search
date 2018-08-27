@@ -116,7 +116,7 @@ class SpotifyMatcher:
 			#TODO exceptions
 			dl_path = ia_track.download(destdir=self.ia_dir)
 			query_fp = fp.generate_fingerprint(dl_path)
-			matched_track = self.match_against(query_fp, self.fingerprint_gen(sp_tracks))
+			matched_track = self.match_against(query_fp, self.fingerprint_gen(query_tracks))
 			if matched_track:
 				results[ia_track.name] = 'track:{}'.format(matched_track['id'])
 		return results
