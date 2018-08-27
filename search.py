@@ -16,6 +16,7 @@ import rq
 import youtube.match as ytmatch
 from spotify.match import SpotifyMatcher
 from spotipy.oauth2 import SpotifyClientCredentials
+import musicbrainz.match as mbmatch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -70,6 +71,8 @@ if __name__=='__main__':
                         action='store_true', default=False)
     parser.add_argument('-S', '--search_spotify', dest='search_spotify',
                         action='store_true', default=False)
+    parser.add_argument('-M', '--search_musicbrainz', dest='search_musicbrainz',
+                        action='store_true', default=False)
     parser.add_argument('-c', '--config_file', dest='config_file',
                         metavar='CONFIG_FILE', default=None,
                         help='Path to an internetarchive library config file')
@@ -113,8 +116,7 @@ if __name__=='__main__':
     YOUTUBE_DL_DIR = config.get('ytsearch', {}).get('youtube_dl_dir', 'tmp/ytdl')
     IA_DL_DIR = config.get('ytsearch', {}).get('ia_dl_dir', 'tmp/iadl')
     MAX_YOUTUBE_RESULTS = int(config.get('ytsearch', {}).get('max_youtube_results', 10))
-    SPOTIFY_CREDENTIALS = SpotifyClientCredentials(*config.get('ytsearch', {}).get(
-                            'spotify_credentials', ':').split(':'))
+    
 
     results = {}
     existing_matches = {}
@@ -182,6 +184,11 @@ if __name__=='__main__':
 
         # Spotify
         if args.search_spotify:
+
+            SPOTIFY_CREDENTIALS = SpotifyClientCredentials(*config.get('ytsearch', {}).get(
+                                    'spotify_credentials', ':').split(':'))
+
+
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
@@ -197,6 +204,8 @@ if __name__=='__main__':
                 spotify_results = spm.match_tracks(tracks, album, query_fmt=args.track_query_format)
             insert_matches(results[iaid], spotify_results, 'spotify')
 
+        if args.search_musicbrainz:
+            mbmatch.match_album(album)
 
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
@@ -214,5 +223,5 @@ if __name__=='__main__':
         else:
             update_metadata(results)
 
-    #print(json.dumps(results))
-    print(json.dumps(merge_dicts(existing_matches, results)))
+    print(json.dumps(results))
+    #print(json.dumps(merge_dicts(existing_matches, results)))
