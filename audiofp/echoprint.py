@@ -6,6 +6,7 @@ import base64
 import itertools
 import json
 import os
+from exceptions import *
 
 from time import time
 
@@ -13,9 +14,6 @@ class Echoprint:
 	def __init__(self, codes, offsets):
 		self.codes = codes
 		self.offsets = offsets
-
-class FingerprintException(Exception):
-	pass
 
 # Echoprint codegen doesn't like special characters in filepaths, and escaping
 # doesn't work for whatever reason. This function is an ongoing effort to
@@ -43,8 +41,15 @@ def generate_fingerprint(audio_filepath, length=120):
 	if processed_path != audio_filepath:
 		os.rename(processed_path, audio_filepath)
 	
-	res = json.loads(proc.stdout.strip())
-	return decode_echoprint_string(res[0]['code'])
+	res = json.loads(proc.stdout.strip())[0]
+
+	if 'code' not in res:
+		raise FingerprintException()
+
+	if res.get('code_count', 0) == 0:
+		raise AudioException()
+
+	return decode_echoprint_string(res['code'])
 
 def compare_fingerprints(reference_fp, query_fp, match_threshold=0.3):
 	reference_codeset = set(reference_fp.codes)

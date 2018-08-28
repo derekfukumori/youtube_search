@@ -4,6 +4,7 @@ import audiofp.echoprint as fp
 import json
 import time
 import logging
+from exceptions import *
 
 logger = logging.getLogger('spotify-match')
 logger.setLevel(logging.WARNING)
@@ -72,7 +73,17 @@ class SpotifyMatcher:
 				if ia_track not in self.ia_fp_cache:
 					#TODO exceptions
 					dl_path = ia_track.download(destdir=self.ia_dir)
-					self.ia_fp_cache[ia_track] = fp.generate_fingerprint(dl_path)
+					try:
+						self.ia_fp_cache[ia_track] = fp.generate_fingerprint(dl_path)
+					except AudioException:
+						# AudioException occurs when echoprint-codegen determines 
+						# that the audio file is essentially empty. This is the 
+						# case for 'silent' tracks that mask hidden tracks.
+						# Don't take these tracks into account when determining
+						# an album match.
+						logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
+										ia_track.parent_album.identifier, ia_track.name))
+						continue
 
 				# Cull the comparison set by duration range
 				query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
@@ -117,7 +128,13 @@ class SpotifyMatcher:
 				continue
 			#TODO exceptions
 			dl_path = ia_track.download(destdir=self.ia_dir)
-			query_fp = fp.generate_fingerprint(dl_path)
+			try:
+				query_fp = fp.generate_fingerprint(dl_path)
+			except AudioException:
+				# See AudioException note in spotify.match.match_album
+				logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
+								ia_track.parent_album.identifier, ia_track.name))
+				continue
 			matched_track = self.match_against(query_fp, self.fingerprint_gen(query_tracks))
 
 			if matched_track:
@@ -161,14 +178,6 @@ class SpotifyMatcher:
 					logger.warning('Warning: unable to retrieve audio analysis for track {}: {}'.format(t['id'], e))
 					self.sp_fp_cache[t['id']] = None
 			yield t, self.sp_fp_cache[t['id']]
-
-	# def get_spotify_fingerprint_map(self, sp_tracks):
-	# 	fp_map = {}
-	# 	for t in sp_tracks:
-	# 		#try:
-	# 		fp_map[t['id']] = self.client.audio_analysis(t['id'])['track']['echoprintstring']
-	# 		#except
-	# 	return fp_map
 	
 	
 

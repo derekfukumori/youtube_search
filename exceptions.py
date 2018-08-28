@@ -16,3 +16,9 @@ class MediaTypeException(Exception):
 
 class MetadataUpdateError(Exception):
 	pass
+
+class AudioException(Exception):
+	pass
+
+class FingerprintException(Exception):
+	pass
