@@ -171,8 +171,14 @@ class SpotifyMatcher:
 			if t['id'] not in self.sp_fp_cache:
 				try:
 					echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
+
+					# Some tracks return an empty audioanalysis object. Treat
+					# these cases as if no audioanalysis object exists.
+					if not echoprintstring:
+						raise FingerprintException("Spotify returned empty audioanalysis object.")
+
 					self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
-				except spotipy.client.SpotifyException as e:
+				except (spotipy.client.SpotifyException, FingerprintException) as e:
 					# If audio analysis for this track can't be retrieved, 
 					# cache the fingerprint as None.
 					logger.warning('Warning: unable to retrieve audio analysis for track {}: {}'.format(t['id'], e))
