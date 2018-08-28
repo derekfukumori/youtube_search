@@ -113,11 +113,13 @@ class SpotifyMatcher:
 			sp_tracks = [t for t in r['tracks']['items']]
 			# Cull the comparison set by duration range
 			query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
+			if not query_tracks:
+				continue
 			#TODO exceptions
 			dl_path = ia_track.download(destdir=self.ia_dir)
 			query_fp = fp.generate_fingerprint(dl_path)
 			matched_track = self.match_against(query_fp, self.fingerprint_gen(query_tracks))
-			
+
 			if matched_track:
 				results[ia_track.name] = 'track:{}'.format(matched_track['id'])
 		return results
