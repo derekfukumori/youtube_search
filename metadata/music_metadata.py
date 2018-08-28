@@ -120,13 +120,9 @@ class IATrack:
         return None
 
     def download(self, destdir='.'):
-        fname = '{}/{}/{}'.format(destdir.rstrip('/'),
+        path = '{}/{}/{}'.format(destdir.rstrip('/'),
                              self.parent_album.identifier,
                              self.get_dl_filename())
-
-        # Strip backticks
-        # TODO: anything else?
-        path = fname.replace('`', '')
 
         # If a file already exists at this path, return
         if os.path.isfile(path):
@@ -138,15 +134,13 @@ class IATrack:
                                                          destdir=destdir,
                                                          silent=True)
                 if errors:
-                    raise DownloadException(fname)
+                    raise DownloadException(path)
             except ReadTimeout:
                 continue
             else:
                 break
         else:
-            raise DownloadException(fname)
-
-        os.rename(fname, path)
+            raise DownloadException(path)
 
         return path
 
