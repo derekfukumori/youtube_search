@@ -46,8 +46,15 @@ class SpotifyMatcher:
 							 	 title = album.title.lower(),
 							 	 creator = album.creator.lower())
 
-		with nostdout():
-			r = self.client.search(query, type='album')
+		try:
+			with nostdout():
+				r = self.client.search(query, type='album')
+		except spotipy.client.SpotifyException:
+			# Certain character sequences in queries cause Spotify search to
+			# return 404 (e.g. the sequence -?). Pending figuring out all
+			# of these sequences, just skip the track.
+			logger.warning('Warning: invalid query format: {}'.format(query))
+			return {}
 
 		logger.debug('Search returned {} result(s) for query "{}"'.format(len(r['albums']['items']), query))
 		
@@ -134,8 +141,16 @@ class SpotifyMatcher:
 			query = query_fmt.format(artist = ia_track.artist.lower(),
 							 	 	 title = ia_track.title.lower(),
 							 	 	 creator = ia_track.creator.lower())
-			with nostdout():
-				r = self.client.search(query, type='track', limit=10)
+			try:
+				with nostdout():
+					r = self.client.search(query, type='track', limit=10)
+			except spotipy.client.SpotifyException:
+				# Certain character sequences in queries cause Spotify search to
+				# return 404 (e.g. the sequence -?). Pending figuring out all
+				# of these sequences, just skip the track.
+				logger.warning('Warning: invalid query format: {}'.format(query))
+				continue
+
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
 			sp_tracks = [t for t in r['tracks']['items']]
 			# Cull the comparison set by duration range
