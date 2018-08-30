@@ -44,7 +44,8 @@ class SpotifyMatcher:
 
 		query = query_fmt.format(artist = album.artist.lower(),
 							 	 title = album.title.lower(),
-							 	 creator = album.creator.lower())
+							 	 #creator = album.creator.lower()
+							 	 )
 
 		
 		with nostdout():
@@ -140,8 +141,9 @@ class SpotifyMatcher:
 			logger.debug('\t\tArtist: {}'.format(ia_track.artist))
 			logger.debug('\t\tTitle:  {}'.format(ia_track.title))
 			query = query_fmt.format(artist = ia_track.artist.lower(),
-							 	 	 title = ia_track.title.lower(),
-							 	 	 creator = ia_track.creator.lower())
+							 	 	 title = ia_track.title.lower()
+							 	 	# creator = ia_track.creator.lower())
+							 	 	)
 			
 			with nostdout():
 				try:
