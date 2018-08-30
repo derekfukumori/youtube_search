@@ -6,6 +6,7 @@ import time
 import logging
 import sys
 import contextlib
+import io
 from exceptions import *
 
 logger = logging.getLogger('spotify-match')
@@ -17,15 +18,12 @@ formatter = logging.Formatter('[%(name)s]: %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-class NoOpFile(object):
-	def write(self, x): pass
-
 # Spotipy writes 'retrying...' messages to stdout with no way to suppress
 # output, so we suppress manually.
 @contextlib.contextmanager
 def nostdout():
 	save_stdout = sys.stdout
-	sys.stdout = NoOpFile()
+	sys.stdout = io.BytesIO()
 	yield
 	sys.stdout = save_stdout
 
@@ -44,9 +42,9 @@ class SpotifyMatcher:
 		logger.debug('\tArtist: {}'.format(album.artist))
 		logger.debug('\tTitle:  {}'.format(album.title))
 
-		query = query_fmt.format(artist = album.artist,
-							 	 title = album.title,
-							 	 creator = album.creator)
+		query = query_fmt.format(artist = album.artist.lower(),
+							 	 title = album.title.lower(),
+							 	 creator = album.creator.lower())
 
 		with nostdout():
 			r = self.client.search(query, type='album')
@@ -133,9 +131,9 @@ class SpotifyMatcher:
 			logger.debug('\t- Matching track: {}'.format(ia_track.name))
 			logger.debug('\t\tArtist: {}'.format(ia_track.artist))
 			logger.debug('\t\tTitle:  {}'.format(ia_track.title))
-			query = query_fmt.format(artist = ia_track.artist,
-							 	 	 title = ia_track.title,
-							 	 	 creator = ia_track.creator)
+			query = query_fmt.format(artist = ia_track.artist.lower(),
+							 	 	 title = ia_track.title.lower(),
+							 	 	 creator = ia_track.creator.lower())
 			with nostdout():
 				r = self.client.search(query, type='track', limit=10)
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
