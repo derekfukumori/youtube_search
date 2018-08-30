@@ -4,6 +4,8 @@ import audiofp.echoprint as fp
 import json
 import time
 import logging
+import sys
+import contextlib
 from exceptions import *
 
 logger = logging.getLogger('spotify-match')
@@ -14,6 +16,18 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(name)s]: %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+class NoOpFile(object):
+	def write(self, x): pass
+
+# Spotipy writes 'retrying...' messages to stdout with no way to suppress
+# output, so we suppress manually.
+@contextlib.contextmanager
+def nostdout():
+	save_stdout = sys.stdout
+	sys.stdout = NoOpFile()
+	yield
+	sys.stdout = save_stdout
 
 def in_duration_range(sp_track, expected_duration, duration_range=20):
     return abs(sp_track['duration_ms']/1000 - expected_duration) < duration_range
@@ -33,7 +47,9 @@ class SpotifyMatcher:
 		query = query_fmt.format(artist = album.artist,
 							 	 title = album.title,
 							 	 creator = album.creator)
-		r = self.client.search(query, type='album')
+
+		with nostdout():
+			r = self.client.search(query, type='album')
 
 		logger.debug('Search returned {} result(s) for query "{}"'.format(len(r['albums']['items']), query))
 		
@@ -48,7 +64,8 @@ class SpotifyMatcher:
 			# Spotify returns at most 50 tracks at a time; for albums with more
 			# than 50 tracks, we have to iterate.
 			for _ in range(50):
-				qr = self.client.album_tracks(sp_album['id'], offset=len(sp_tracks))
+				with nostdout():
+					qr = self.client.album_tracks(sp_album['id'], offset=len(sp_tracks))
 				sp_tracks.extend(qr['items'])
 				if len(sp_tracks) == sp_album['total_tracks']:
 					break
@@ -119,7 +136,8 @@ class SpotifyMatcher:
 			query = query_fmt.format(artist = ia_track.artist,
 							 	 	 title = ia_track.title,
 							 	 	 creator = ia_track.creator)
-			r = self.client.search(query, type='track', limit=10)
+			with nostdout():
+				r = self.client.search(query, type='track', limit=10)
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
 			sp_tracks = [t for t in r['tracks']['items']]
 			# Cull the comparison set by duration range
@@ -170,7 +188,16 @@ class SpotifyMatcher:
 			#TODO: exceptions
 			if t['id'] not in self.sp_fp_cache:
 				try:
-					echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
+					with nostdout():
+						audioanalysis =  self.client.audio_analysis(t['id'])
+
+					# If Spotify returns a series of 5xx errors, the Spotipy library
+					# returns None rather than raising an exception, so we raise
+					# one ourselves.
+					if audioanalysis == None:
+						raise FingerprintException("5xx error when retrieving audioanalysis.")
+					
+					echoprintstring = audioanalysis['track']['echoprintstring']
 
 					# Some tracks return an empty audioanalysis object. Treat
 					# these cases as if no audioanalysis object exists.
