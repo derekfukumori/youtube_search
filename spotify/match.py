@@ -46,15 +46,16 @@ class SpotifyMatcher:
 							 	 title = album.title.lower(),
 							 	 creator = album.creator.lower())
 
-		try:
-			with nostdout():
+		
+		with nostdout():
+			try:
 				r = self.client.search(query, type='album')
-		except spotipy.client.SpotifyException:
-			# Certain character sequences in queries cause Spotify search to
-			# return 404 (e.g. the sequence -?). Pending figuring out all
-			# of these sequences, just skip the track.
-			logger.warning('Warning: invalid query format: {}'.format(query))
-			return {}
+			except spotipy.client.SpotifyException:
+				# Certain character sequences in queries cause Spotify search to
+				# return 404 (e.g. the sequence -?). Pending figuring out all
+				# of these sequences, just skip the track.
+				logger.warning('Warning: invalid query format: {}'.format(query))
+				return {}
 
 		logger.debug('Search returned {} result(s) for query "{}"'.format(len(r['albums']['items']), query))
 		
@@ -133,7 +134,7 @@ class SpotifyMatcher:
 
 	def match_tracks(self, tracks, album, query_fmt='{artist} {title}'):
 		logger.debug('- Matching individual tracks')
-		results ={}
+		results = {}
 		for ia_track in tracks:
 			logger.debug('\t- Matching track: {}'.format(ia_track.name))
 			logger.debug('\t\tArtist: {}'.format(ia_track.artist))
@@ -141,15 +142,16 @@ class SpotifyMatcher:
 			query = query_fmt.format(artist = ia_track.artist.lower(),
 							 	 	 title = ia_track.title.lower(),
 							 	 	 creator = ia_track.creator.lower())
-			try:
-				with nostdout():
+			
+			with nostdout():
+				try:
 					r = self.client.search(query, type='track', limit=10)
-			except spotipy.client.SpotifyException:
-				# Certain character sequences in queries cause Spotify search to
-				# return 404 (e.g. the sequence -?). Pending figuring out all
-				# of these sequences, just skip the track.
-				logger.warning('Warning: invalid query format: {}'.format(query))
-				continue
+				except spotipy.client.SpotifyException:
+					# Certain character sequences in queries cause Spotify search to
+					# return 404 (e.g. the sequence -?). Pending figuring out all
+					# of these sequences, just skip the track.
+					logger.warning('Warning: invalid query format: {}'.format(query))
+					continue
 
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
 			sp_tracks = [t for t in r['tracks']['items']]
