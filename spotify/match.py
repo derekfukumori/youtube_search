@@ -5,8 +5,8 @@ import json
 import time
 import logging
 import sys
+import os
 import contextlib
-import io
 from exceptions import *
 
 logger = logging.getLogger('spotify-match')
@@ -22,10 +22,13 @@ logger.addHandler(ch)
 # output, so we suppress manually.
 @contextlib.contextmanager
 def nostdout():
-	save_stdout = sys.stdout
-	sys.stdout = io.BytesIO()
-	yield
-	sys.stdout = save_stdout
+	with open(os.devnull, 'w') as devnull:
+		old_stdout = sys.stdout
+		sys.stdout = devnull
+		try:  
+ 			yield
+		finally:
+			sys.stdout = old_stdout
 
 def in_duration_range(sp_track, expected_duration, duration_range=20):
     return abs(sp_track['duration_ms']/1000 - expected_duration) < duration_range
