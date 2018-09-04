@@ -6,6 +6,7 @@ import base64
 import itertools
 import json
 import os
+import os.path
 from exceptions import *
 
 from time import time
@@ -29,6 +30,7 @@ def generate_fingerprint(audio_filepath, length=120):
 	# If the filepath contains special characters, move it to a new path with
 	# those characters removed/replaced.
 	if processed_path != audio_filepath:
+		os.makedirs(os.path.split(processed_path)[0], exist_ok=True)
 		os.rename(audio_filepath, processed_path)
 
 	try:
