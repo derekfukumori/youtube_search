@@ -10,10 +10,23 @@ try:
 except MetadataException:
 	sys.exit(0)
 
+htoa_present = False
+silence_present = False
 for track in album.tracks:
-	dl_path = track.download(dest_dir='tmp/htoa')
-	try:
-		generate_fingerprint(dl_path)
-	except AudioException:
-		print(track.name)
+	lct = track.title.lower()
+	if 'hidden track one audio' in lct:
+		dl_path = track.download('tmp/silence_test')
+		try:
+			generate_fingerprint(dl_path)
+		except AudioException:
+			htoa_present = True
+			continue
+	if not silence_present and ('silence' in lct or 'untitled' in lct):
+		dl_path = track.download('tmp/silence_test')
+		try:
+			generate_fingerprint(dl_path)
+		except AudioException:
+			silence_present = True
+if htoa_present: print('htoa:{}'.format(iaid))
+if silence_present: print('silence:{}'.format(iaid))
 
