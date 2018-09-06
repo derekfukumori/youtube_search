@@ -136,6 +136,9 @@ if __name__=='__main__':
         except MediaTypeException:
             logger.error('{}: Item is not audio'.format(iaid))
             sys.exit(ExitCodes.IAMediatypeError.value)
+        except DarkedError:
+            logger.error('{}: Item is dark'.format(iaid))
+            sys.exit(ExitCodes.DarkedError.value)
 
         YOUTUBE_DL_SUBDIR = '{}/{}'.format(YOUTUBE_DL_DIR, iaid)
 

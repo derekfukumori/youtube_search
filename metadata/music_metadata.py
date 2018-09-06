@@ -157,6 +157,9 @@ class IAAlbum:
         else:
             raise DownloadException(iaid)
 
+        if self.item.item_metadata.get('is_dark', False):
+            raise DarkedError(iaid)
+
         if not self.item.item_metadata or 'error' in self.item.item_metadata:
             raise MetadataException(iaid)
 

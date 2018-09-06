@@ -5,6 +5,9 @@ import zlib
 import base64
 import itertools
 import json
+import os
+import os.path
+from exceptions import *
 
 from time import time
 
@@ -13,21 +16,42 @@ class Echoprint:
 		self.codes = codes
 		self.offsets = offsets
 
-class FingerprintException(Exception):
-	pass
+# Echoprint codegen doesn't like special characters in filepaths, and escaping
+# doesn't work for whatever reason. This function is an ongoing effort to
+# figure out which characters cause problems.
+def preprocess_path(path):
+	processed_path = path.replace('`', '')
+	processed_path = processed_path.replace('$', 'S')
+	return processed_path
 
-def generate_fingerprint(audio_file, length=120):
+def generate_fingerprint(audio_filepath, length=120):
+
+	processed_path = preprocess_path(audio_filepath)
+	# If the filepath contains special characters, move it to a new path with
+	# those characters removed/replaced.
+	if processed_path != audio_filepath:
+		os.makedirs(os.path.split(processed_path)[0], exist_ok=True)
+		os.rename(audio_filepath, processed_path)
+
 	try:
-		#TODO: Duration restriction?
-		# proc = subprocess.run(['fpcalc', '-raw', '-plain', audio_file, '-length', str(ceil(length)), '-overlap'], 
-		# 	   stdout=subprocess.PIPE, encoding='ascii', check=True)
-		proc = subprocess.run(['echoprint-codegen', audio_file], 
+		proc = subprocess.run(['echoprint-codegen', processed_path], 
 							  stdout=subprocess.PIPE, encoding='UTF-8', check=True)
 	except subprocess.CalledProcessError:
 		raise FingerprintException()
+
+	# If we had to move the file, move it back
+	if processed_path != audio_filepath:
+		os.rename(processed_path, audio_filepath)
 	
-	res = json.loads(proc.stdout.strip())
-	return decode_echoprint_string(res[0]['code'])
+	res = json.loads(proc.stdout.strip())[0]
+
+	if 'code' not in res:
+		raise FingerprintException()
+
+	if res.get('code_count', 0) == 0:
+		raise AudioException()
+
+	return decode_echoprint_string(res['code'])
 
 def compare_fingerprints(reference_fp, query_fp, match_threshold=0.3):
 	reference_codeset = set(reference_fp.codes)

@@ -56,7 +56,7 @@ def write_metadata(item, md, target='metadata'):
 																target))
 			return False
 		elif 'no file entry of that name found' in r.text:
-			logger.warning('{}/{} does not exist, skipped.'.format(item.identifer,
+			logger.warning('{}/{} does not exist, skipped.'.format(item.identifier,
 																   target))
 			return False
 		else:

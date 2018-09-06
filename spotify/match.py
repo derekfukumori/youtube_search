@@ -4,6 +4,10 @@ import audiofp.echoprint as fp
 import json
 import time
 import logging
+import sys
+import os
+import contextlib
+from exceptions import *
 
 logger = logging.getLogger('spotify-match')
 logger.setLevel(logging.WARNING)
@@ -13,6 +17,18 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(name)s]: %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+# Spotipy writes 'retrying...' messages to stdout with no way to suppress
+# output, so we suppress manually.
+@contextlib.contextmanager
+def nostdout():
+	with open(os.devnull, 'w') as devnull:
+		old_stdout = sys.stdout
+		sys.stdout = devnull
+		try: 
+			yield
+		finally:
+			sys.stdout = old_stdout
 
 def in_duration_range(sp_track, expected_duration, duration_range=20):
     return abs(sp_track['duration_ms']/1000 - expected_duration) < duration_range
@@ -29,10 +45,21 @@ class SpotifyMatcher:
 		logger.debug('\tArtist: {}'.format(album.artist))
 		logger.debug('\tTitle:  {}'.format(album.title))
 
-		query = query_fmt.format(artist = album.artist,
-							 	 title = album.title,
-							 	 creator = album.creator)
-		r = self.client.search(query, type='album')
+		query = query_fmt.format(artist = album.artist.lower(),
+							 	 title = album.title.lower(),
+							 	 #creator = album.creator.lower()
+							 	 )
+
+		
+		with nostdout():
+			try:
+				r = self.client.search(query, type='album')
+			except spotipy.client.SpotifyException:
+				# Certain character sequences in queries cause Spotify search to
+				# return 404 (e.g. the sequence -?). Pending figuring out all
+				# of these sequences, just skip the track.
+				logger.warning('Warning: invalid query format: {}'.format(query))
+				return {}
 
 		logger.debug('Search returned {} result(s) for query "{}"'.format(len(r['albums']['items']), query))
 		
@@ -47,7 +74,8 @@ class SpotifyMatcher:
 			# Spotify returns at most 50 tracks at a time; for albums with more
 			# than 50 tracks, we have to iterate.
 			for _ in range(50):
-				qr = self.client.album_tracks(sp_album['id'], offset=len(sp_tracks))
+				with nostdout():
+					qr = self.client.album_tracks(sp_album['id'], offset=len(sp_tracks))
 				sp_tracks.extend(qr['items'])
 				if len(sp_tracks) == sp_album['total_tracks']:
 					break
@@ -72,7 +100,17 @@ class SpotifyMatcher:
 				if ia_track not in self.ia_fp_cache:
 					#TODO exceptions
 					dl_path = ia_track.download(destdir=self.ia_dir)
-					self.ia_fp_cache[ia_track] = fp.generate_fingerprint(dl_path)
+					try:
+						self.ia_fp_cache[ia_track] = fp.generate_fingerprint(dl_path)
+					except AudioException:
+						# AudioException occurs when echoprint-codegen determines 
+						# that the audio file is essentially empty. This is the 
+						# case for 'silent' tracks that mask hidden tracks.
+						# Don't take these tracks into account when determining
+						# an album match.
+						logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
+										ia_track.parent_album.identifier, ia_track.name))
+						continue
 
 				# Cull the comparison set by duration range
 				query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
@@ -100,23 +138,43 @@ class SpotifyMatcher:
 
 	def match_tracks(self, tracks, album, query_fmt='{artist} {title}'):
 		logger.debug('- Matching individual tracks')
-		results ={}
+		results = {}
 		for ia_track in tracks:
 			logger.debug('\t- Matching track: {}'.format(ia_track.name))
 			logger.debug('\t\tArtist: {}'.format(ia_track.artist))
 			logger.debug('\t\tTitle:  {}'.format(ia_track.title))
-			query = query_fmt.format(artist = ia_track.artist,
-							 	 	 title = ia_track.title,
-							 	 	 creator = ia_track.creator)
-			r = self.client.search(query, type='track', limit=10)
+			query = query_fmt.format(artist = ia_track.artist.lower(),
+							 	 	 title = ia_track.title.lower()
+							 	 	# creator = ia_track.creator.lower())
+							 	 	)
+			
+			with nostdout():
+				try:
+					r = self.client.search(query, type='track', limit=10)
+				except spotipy.client.SpotifyException:
+					# Certain character sequences in queries cause Spotify search to
+					# return 404 (e.g. the sequence -?). Pending figuring out all
+					# of these sequences, just skip the track.
+					logger.warning('Warning: invalid query format: {}'.format(query))
+					continue
+
 			logger.debug('\t\tSearch returned {} result(s) for query "{}"'.format(len(r['tracks']['items']), query))
 			sp_tracks = [t for t in r['tracks']['items']]
 			# Cull the comparison set by duration range
 			query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
+			if not query_tracks:
+				continue
 			#TODO exceptions
 			dl_path = ia_track.download(destdir=self.ia_dir)
-			query_fp = fp.generate_fingerprint(dl_path)
-			matched_track = self.match_against(query_fp, self.fingerprint_gen(sp_tracks))
+			try:
+				query_fp = fp.generate_fingerprint(dl_path)
+			except AudioException:
+				# See AudioException note in spotify.match.match_album
+				logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
+								ia_track.parent_album.identifier, ia_track.name))
+				continue
+			matched_track = self.match_against(query_fp, self.fingerprint_gen(query_tracks))
+
 			if matched_track:
 				results[ia_track.name] = 'track:{}'.format(matched_track['id'])
 		return results
@@ -126,6 +184,11 @@ class SpotifyMatcher:
 		best_match_rating = 0
 
 		for sp_track, reference_fp in sp_fp_gen:
+			if reference_fp == None:
+				# reference_fp will be None if we were unable to pull audio analysis
+				# for the given Spotify track -- see the note in fingerprint_gen().
+				logger.warning('Warning: No fingerprint exists for track {}, skipping.'.format(sp_track['id']))
+				continue
 			match_rating = fp.compare_fingerprints(reference_fp, query_fp)
 			#logger.debug('\t\t- Matching against: {}\tRating: {}'.format(sp_track['uri'], match_rating))
 
@@ -144,17 +207,30 @@ class SpotifyMatcher:
 		for t in sp_tracks:
 			#TODO: exceptions
 			if t['id'] not in self.sp_fp_cache:
-				echoprintstring = self.client.audio_analysis(t['id'])['track']['echoprintstring']
-				self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
-			yield t, self.sp_fp_cache[t['id']]
+				try:
+					with nostdout():
+						audioanalysis =  self.client.audio_analysis(t['id'])
 
-	# def get_spotify_fingerprint_map(self, sp_tracks):
-	# 	fp_map = {}
-	# 	for t in sp_tracks:
-	# 		#try:
-	# 		fp_map[t['id']] = self.client.audio_analysis(t['id'])['track']['echoprintstring']
-	# 		#except
-	# 	return fp_map
+					# If Spotify returns a series of 5xx errors, the Spotipy library
+					# returns None rather than raising an exception, so we raise
+					# one ourselves.
+					if audioanalysis == None:
+						raise FingerprintException("5xx error when retrieving audioanalysis.")
+					
+					echoprintstring = audioanalysis['track']['echoprintstring']
+
+					# Some tracks return an empty audioanalysis object. Treat
+					# these cases as if no audioanalysis object exists.
+					if not echoprintstring:
+						raise FingerprintException("Spotify returned empty audioanalysis object.")
+
+					self.sp_fp_cache[t['id']] = fp.decode_echoprint_string(echoprintstring)
+				except (spotipy.client.SpotifyException, FingerprintException) as e:
+					# If audio analysis for this track can't be retrieved, 
+					# cache the fingerprint as None.
+					logger.warning('Warning: unable to retrieve audio analysis for track {}: {}'.format(t['id'], e))
+					self.sp_fp_cache[t['id']] = None
+			yield t, self.sp_fp_cache[t['id']]
 	
 	
 
