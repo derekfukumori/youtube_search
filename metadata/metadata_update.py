@@ -25,6 +25,7 @@ logger.addHandler(ch)
 # need to change to accommodate.
 YOUTUBE_RE = re.compile('[a-zA-Z0-9\-\_]{11}(&t=\d+)?')
 SPOTIFY_RE = re.compile('(track|album):[a-zA-Z0-9]{22}')
+MUSICBRAINZ_RE = re.compile('[a-f0-9]{8}-([a-f0-9]{4}-){3}[a-f0-9]{12}')
 
 NOW = '{}Z'.format(arrow.now().isoformat().split('.')[0])
 
@@ -35,7 +36,14 @@ def verify_youtube_id(eid):
 def verify_spotify_id(eid):
 	return SPOTIFY_RE.fullmatch(eid)
 
-source_validators = {'youtube':verify_youtube_id, 'spotify':verify_spotify_id}
+def verify_musicbrainz_id(eid):
+	return MUSICBRAINZ_RE.fullmatch(eid)
+
+source_validators = {'youtube':verify_youtube_id, 
+					 'spotify':verify_spotify_id,
+					 'mb_recording_id':verify_musicbrainz_id, 
+					 'mb_releasegroup_id': verify_musicbrainz_id
+					}
 
 def contains_match(files_map):
 	for f in files_map:
