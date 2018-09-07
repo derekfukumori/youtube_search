@@ -26,11 +26,14 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-def insert_matches(main, sub, source):
+def insert_matches(main, sub, file_source, item_source):
     for t in sub:
         if t not in main:
             main[t] = {}
-        main[t][source] = sub[t]
+        if t == 'full_album':
+            main[t][item_source] = sub[t]
+        else:
+            main[t][file_source] = sub[t]
 
 def get_existing_matches(album):
     m = {t.name:{} for t in album.tracks}
@@ -168,7 +171,7 @@ if __name__=='__main__':
                                                        yt_dir=YOUTUBE_DL_SUBDIR, 
                                                        api_key=GOOGLE_API_KEYS,
                                                        query_fmt=args.track_query_format)
-            insert_matches(results[iaid], youtube_results, 'youtube')
+            insert_matches(results[iaid], youtube_results, 'youtube', 'youtube')
 
             # Submit results to the YouTube archiver endpoint
             vids = youtube_results['full_album'] if 'full_album' in youtube_results \
@@ -187,10 +190,8 @@ if __name__=='__main__':
 
         # Spotify
         if args.search_spotify:
-
             SPOTIFY_CREDENTIALS = SpotifyClientCredentials(*config.get('ytsearch', {}).get(
                                     'spotify_credentials', ':').split(':'))
-
 
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
@@ -205,10 +206,11 @@ if __name__=='__main__':
                 else:
                     tracks = album.tracks
                 spotify_results = spm.match_tracks(tracks, album, query_fmt=args.track_query_format)
-            insert_matches(results[iaid], spotify_results, 'spotify')
+            insert_matches(results[iaid], spotify_results, 'spotify', 'spotify')
 
         if args.search_musicbrainz:
-            mbmatch.match_album(album)
+            musicbrainz_results = mbmatch.match_album(album)
+            insert_matches(results[iaid], musicbrainz_results, 'mb_recording_id', 'mb_releasegroup_id')
 
         if args.clear_audio_cache:
             shutil.rmtree('{}/{}'.format(IA_DL_DIR.rstrip(), iaid), ignore_errors=True)
