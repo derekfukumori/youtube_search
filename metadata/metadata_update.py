@@ -108,17 +108,24 @@ def get_updated_file_metadata(filename, matched_eids, item):
 		match_date = '{}:{}'.format(source, NOW)
 
 		if matched_eid in file_eid_map.get(source, list()):
-			continue
-		
-		if source in file_eid_map:
-			file_eid_map[source].insert(0, matched_eid)
+			# If the eid is already present in metadata, check if it has a match date.
+			# If it does, continue; otherwise, add one.
+			if len(file_eid_map[source]) == len(file_eid_date_map.get(source, list())):
+				continue
+			if source in file_eid_date_map:
+				file_eid_date_map[source].insert(0, match_date)
+			else:
+				file_eid_date_map[source] = [match_date]
 		else:
-			file_eid_map[source] = [matched_eid]
-		
-		if source in file_eid_date_map:
-			file_eid_date_map[source].insert(0, match_date)
-		else:
-			file_eid_date_map[source] = [match_date]
+			if source in file_eid_map:
+				file_eid_map[source].insert(0, matched_eid)
+			else:
+				file_eid_map[source] = [matched_eid]
+			
+			if source in file_eid_date_map:
+				file_eid_date_map[source].insert(0, match_date)
+			else:
+				file_eid_date_map[source] = [match_date]
 
 		updated = True
 
