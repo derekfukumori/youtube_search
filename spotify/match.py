@@ -93,7 +93,7 @@ class SpotifyMatcher:
 				query_tracks = [t for t in sp_tracks if in_duration_range(t, ia_track.duration)]
 
 				matched_track = self.match_against(self.ia_fp_cache[ia_track],
-										   		   sp_tracks,
+										   		   query_tracks,
 										   		   match_threshold=0.15,
 										   		   short_circuit=False)
 				
@@ -153,7 +153,7 @@ class SpotifyMatcher:
 				logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
 								ia_track.parent_album.identifier, ia_track.name))
 				continue
-			matched_track = self.match_against(query_fp, sp_tracks)
+			matched_track = self.match_against(query_fp, query_tracks)
 
 			if matched_track:
 				results[ia_track.name] = 'track:{}'.format(matched_track.id)
