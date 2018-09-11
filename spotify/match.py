@@ -8,6 +8,7 @@ import sys
 import os
 import contextlib
 from exceptions import *
+from spotify.metadata import *
 
 logger = logging.getLogger('spotify-match')
 logger.setLevel(logging.WARNING)
@@ -62,8 +63,21 @@ class SpotifyMatcher:
 				return {}
 
 		logger.debug('Search returned {} result(s) for query "{}"'.format(len(r['albums']['items']), query))
-		
+
 		for sp_album in r['albums']['items']:
+			
+
+
+
+
+
+			SpotifyAlbum(self.client, sp_album)
+			sys.exit(0)
+
+
+
+
+
 			logger.debug('- Matching against: {}'.format(sp_album['uri']))
 			logger.debug('\tArtist(s): {}'.format(str.join(', ', [a['name'] for a in sp_album['artists']])))
 			logger.debug('\tTitle:     {}'.format(sp_album['name']))
