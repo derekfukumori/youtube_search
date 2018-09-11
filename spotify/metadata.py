@@ -60,7 +60,7 @@ class SpotifyTrack:
 					audioanalysis = self.spotipy_client.audio_analysis(self.id)
 				# If Spotify returns a series of 5xx errors, spotipy returns None 
 				# rather than raising an exception, so we raise one ourselves.
-				if audioanalysis = None:
+				if audioanalysis == None:
 					raise spotipy.client.SpotifyException('5xx', -1, "Unable to retrieve audioanalysis")
 			except spotipy.client.SpotifyException as e:
 				logger.warning('Warning: unable to retrieve audio analysis for track {}: {}'.format(self.id, e))

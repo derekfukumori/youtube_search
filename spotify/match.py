@@ -5,10 +5,9 @@ import json
 import time
 import logging
 import sys
-import os
-import contextlib
 from exceptions import *
 from spotify.metadata import *
+from spotify.util import nostdout
 
 logger = logging.getLogger('spotify-match')
 logger.setLevel(logging.WARNING)
@@ -18,18 +17,6 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(name)s]: %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-
-# Spotipy writes 'retrying...' messages to stdout with no way to suppress
-# output, so we suppress manually.
-@contextlib.contextmanager
-def nostdout():
-	with open(os.devnull, 'w') as devnull:
-		old_stdout = sys.stdout
-		sys.stdout = devnull
-		try: 
-			yield
-		finally:
-			sys.stdout = old_stdout
 
 def in_duration_range(sp_track, expected_duration, duration_range=20):
     return abs(sp_track['duration_ms']/1000 - expected_duration) < duration_range
@@ -50,7 +37,6 @@ class SpotifyMatcher:
 							 	 title = album.title.lower(),
 							 	 #creator = album.creator.lower()
 							 	 )
-
 		
 		with nostdout():
 			try:
