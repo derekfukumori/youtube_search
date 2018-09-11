@@ -24,7 +24,6 @@ class SpotifyAlbum:
 		for _ in range(50):
 			with nostdout():
 				qr = self.spotipy_client.album_tracks(sp_album_md['id'], offset=len(sp_tracks))
-			#sp_tracks.extend(qr['items'])
 			for sp_track_md in qr['items']:
 				sp_tracks.append(SpotifyTrack(self.spotipy_client, sp_track_md))
 			if len(sp_tracks) == sp_album_md['total_tracks']:
@@ -36,6 +35,10 @@ class SpotifyAlbum:
 			#TODO: more meaningful exception
 			raise Exception('Could not retrieve Spotify tracks')
 
+		# Set the track ordering (see note in SpotifyTrack.__init__).
+		for i in range(len(sp_tracks)):
+			sp_tracks[i].ordinal = i+1
+			
 		return sp_tracks
 
 class SpotifyTrack:
@@ -50,8 +53,6 @@ class SpotifyTrack:
 		self.ordinal = None
 		self.fingerprint = None
 		self.fingerprint_attempted = False
-		# print(sp_track_md)
-		# print(self.artists, self.title, self.duration, self.id)
 	def get_fingerprint(self):
 		if self.fingerprint == None and not self.fingerprint_attempted:
 			self.fingerprint_attempted = True
