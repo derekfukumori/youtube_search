@@ -1,5 +1,8 @@
-class MusicBrainzRelease:
+from metadata.music_metadata import Album, Track
+
+class MusicBrainzRelease(Album):
 	def __init__(self, mb_release_md):
+		self.source = 'mb_release_id'
 		self.id = mb_release_md['id']
 		self.artists = [a['artist']['name'] for a in mb_release_md['artist-credit']]
 		self.title = mb_release_md['title']
@@ -20,8 +23,9 @@ class MusicBrainzRelease:
 		return mb_recordings
 
 
-class MusicBrainzRecording:
+class MusicBrainzRecording(Track):
 	def __init__(self, mb_recording_md):
+		self.source = 'mb_recording_id'
 		self.id = mb_recording_md['id']
 		self.artists = [a['artist']['name'] for a in mb_recording_md['artist-credit']]
 		self.title = mb_recording_md['title']
@@ -29,4 +33,3 @@ class MusicBrainzRecording:
 		# Ordinal can't be determined from recording metadata directly, so we set
 		# the ordinal from MusicBrainzRelease.populate_tracks()
 		self.ordinal = None
-		print(self.id, self.artists, self.title, self.duration)

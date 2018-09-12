@@ -152,7 +152,6 @@ def match_album(album, query_fmt='artist:"{artist}" AND release:"{title}"'):
 
 		if mb_release_id:
 			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
-			print(json.dumps(mb_release_md))
 			mb_release = MusicBrainzRelease(mb_release_md)
 			rating, matches = correlate_tracks(album, mb_release_md)
 			if rating >= 0.9: #TODO: Too strict/loose?

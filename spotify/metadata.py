@@ -1,5 +1,6 @@
 from spotify.util import nostdout
 import audiofp.echoprint as fp
+from metadata.music_metadata import Album, Track
 
 def get_artists(sp_md):
 	""" Given a Spotify track or album metadata dict (as returned by spotipy), 
@@ -7,10 +8,11 @@ def get_artists(sp_md):
 	return [a['name'] for a in sp_md['artists']]	
 
 # TODO: Extends Album?
-class SpotifyAlbum:
+class SpotifyAlbum(Album):
 	def __init__(self, spotipy_client, sp_album_md):
-		self.id = sp_album_md.get('id', None)
 		self.spotipy_client = spotipy_client
+		self.source = 'spotify:album'
+		self.id = sp_album_md.get('id', None)
 		self.artists = get_artists(sp_album_md)
 		self.title = sp_album_md.get('name', None)
 		self.tracks = self.populate_tracks(sp_album_md)
@@ -44,9 +46,10 @@ class SpotifyAlbum:
 		return sp_tracks
 
 # TODO: Extends Track?
-class SpotifyTrack:
+class SpotifyTrack(Track):
 	def __init__(self, spotipy_client, sp_track_md):
 		self.spotipy_client = spotipy_client
+		self.source = 'spotify:track'
 		self.id = sp_track_md.get('id', None)
 		self.artists = get_artists(sp_track_md)
 		self.title = sp_track_md.get('name', None)
