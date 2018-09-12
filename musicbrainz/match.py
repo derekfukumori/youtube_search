@@ -1,4 +1,5 @@
 import musicbrainzngs as mb
+from musicbrainz.metadata import *
 import json
 from fuzzywuzzy import fuzz
 from exceptions import *
@@ -35,7 +36,7 @@ RELEASE_INCLUDES = [
 	"recordings",
 	"release-groups",
 	#"media",
-	#"artist-credits",
+	"artist-credits",
 	#"discids",
 	#"isrcs",
 	"recording-level-rels",
@@ -45,7 +46,7 @@ RELEASE_INCLUDES = [
 	#"tags",
 	#"user-tags",		# Requires user authentication
 	#"area-rels",
-	#"artist-rels",
+	"artist-rels",
 	#"label-rels",
 	#"place-rels",
 	#"event-rels",
@@ -145,15 +146,17 @@ def match_album(album, query_fmt='artist:"{artist}" AND release:"{title}"'):
 	# to attempt to determine the release corresponding to the given album.
 	# Doing this via a release group resource, rather than retrieving individual
 	# releases, allows us to cut down on API calls.
-	for release_group in generate_release_groups(r):
+	for mb_release_group in generate_release_groups(r):
 
-		release_id = upc_match(album, release_group)
+		mb_release_id = upc_match(album, mb_release_group)
 
-		if release_id:
-			release = mb.get_release_by_id(release_id, includes=RELEASE_INCLUDES)['release']
-			rating, matches = correlate_tracks(album, release)
+		if mb_release_id:
+			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
+			print(json.dumps(mb_release_md))
+			mb_release = MusicBrainzRelease(mb_release_md)
+			rating, matches = correlate_tracks(album, mb_release_md)
 			if rating >= 0.9: #TODO: Too strict/loose?
-				matches['full_album'] = release_group['id']
+				matches['full_album'] = mb_release_group['id']
 				return matches
 
 		# release_list = release_group['release-list']
