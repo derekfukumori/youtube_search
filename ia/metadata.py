@@ -2,6 +2,7 @@ import internetarchive
 import logging
 import re
 import json
+import os
 from metadata.util import to_list
 from metadata.music_metadata import Album, Track
 from os.path import splitext
@@ -24,25 +25,24 @@ class IAAlbum(Album):
 		else:
 			raise DownloadException(iaid)
 
-		ia_item_md = self.item.item_metadata['metadata']
-
-		print(json.dumps(self.item.item_metadata['metadata']))
+		self.metadata = self.item.item_metadata['metadata']
 		self.source = 'ia_item'
 		self.id = self.item.identifier
-		self.artists = to_list(ia_item_md.get('artist', ia_item_md.get('creator', None)))
-		self.title = ia_item_md['title'] # This works for ACDC, but won't for what.cd
-		self.publisher = ia_item_md['publisher']
+		self.artists = to_list(self.metadata.get('artist', self.metadata.get('creator', None)))
+		self.title = self.metadata['title'] # This works for ACDC, but won't for what.cd
+		self.publisher = self.metadata['publisher']
 		self.track_map = {}
 		self.populate_tracks()
 		self.populate_derivatives()
 		for t in self.tracks:
-			print(t, t.derivatives)
+			# print(t, t.derivatives)
+			print(t.get_eid("spotify:track"))
 		
 	def populate_tracks(self):
 		for ia_file_md in self.item.files:
 			if ia_file_md['source'] == 'original' and filename_to_audio_filetype(ia_file_md['name']):
 				try:
-					ia_track = IATrack(ia_file_md)
+					ia_track = IATrack(ia_file_md, self)
 				except KeyError as e:
 					logger.warning('{}: File "{}" does not contain metadata entry {}'.format(iaid, ia_file_md['name'], e))
 				self.tracks.append(ia_track)
@@ -59,6 +59,8 @@ class IAAlbum(Album):
 			and not splitext(ia_file_md['name'])[0].endswith('_sample'):
 				self.track_map[ia_file_md['original']].derivatives[filetype] = ia_file_md['name']
 
+	# TODO: We can have multiple eids from the same source. Are there cases where we 
+	# need to return a list?
 	def get_eid(self, source):
 		eids = to_list(self.item.item_metadata['metadata'].get('external-identifier', []))
 		for eid in eids:
@@ -68,18 +70,11 @@ class IAAlbum(Album):
 				return eid.split(':')[-1]
 		return None
 
-	# def get_eid(self, eid_source):
- #        eids = copy(self.item.item_metadata['metadata'].get('external-identifier', []))
- #        eids = eids if isinstance(eids, list) else [eids]
- #        for eid in eids:
- #            if eid.startswith('urn:{}'.format(eid_source)):
- #                return eid.split(':', 2)[-1]
- #        return None
-
-
 
 class IATrack(Track):
-	def __init__(self, ia_file_md):
+	def __init__(self, ia_file_md, ia_album):
+		self.parent_album = ia_album
+		self.metadata = ia_file_md
 		self.source = 'ia_track'
 		self.id = ia_file_md['name']
 		self.artists = to_list(ia_file_md['artist'])
@@ -87,6 +82,52 @@ class IATrack(Track):
 		self.duration = get_track_duration(ia_file_md)
 		self.ordinal = get_track_ordinal(ia_file_md)
 		self.derivatives = {}
+		self.orig_filetype = filename_to_audio_filetype(self.id)
+
+	# TODO: We can have multiple eids from the same source. Are there cases where we 
+	# need to return a list?
+	def get_eid(self, source):
+		eids = to_list(self.metadata.get('external-identifier', []))
+		for eid in eids:
+			# eid sources can contain ':' (e.g. 'spotify:track'), so we have to compare
+			# each token except the first ('urn') and the last (the ID number)
+			if source.split(':') == eid.split(':')[1:-1]:
+				return eid.split(':')[-1]
+		return None
+
+	def get_dl_filename(self):
+		""" Get the filename of the preferred download format for this track.
+		"""
+		for ftype in AudioFiletype:
+			if ftype == self.orig_filetype:
+				return self.name
+			elif ftype in self.derivatives:
+				return self.derivatives[ftype]
+
+	def download(self, destdir='.'):
+		path = '{}/{}/{}'.format(destdir.rstrip('/'),
+							 self.parent_album.id,
+							 self.get_dl_filename())
+
+		# If a file already exists at this path, return
+		if os.path.isfile(path):
+			 return path
+
+		for _ in range(MAX_RETRIES):
+			try:
+				errors = self.parent_album.item.download(files=[self.get_dl_filename()], 
+														 destdir=destdir,
+														 silent=True)
+				if errors:
+					raise DownloadException(path)
+			except ReadTimeout:
+				continue
+			else:
+				break
+		else:
+			raise DownloadException(path)
+
+		return path
 
 class AudioFiletype(enum.Enum):
 	"""Enum representing audio filetypes. Ordering represents the preferred

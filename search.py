@@ -134,6 +134,10 @@ if __name__=='__main__':
 
         try:
             album = IAAlbum(iaid)
+            album_test = IAAlbumTest(iaid)
+            print(album_test)
+            for t in album_test.tracks:
+                print(t.download(IA_DL_DIR))
         except MetadataException:
             logger.error('{}: Unable to process item metadata'.format(iaid))
             sys.exit(ExitCodes.IAMetadataError.value)
