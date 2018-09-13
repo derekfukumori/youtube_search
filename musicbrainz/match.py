@@ -71,14 +71,14 @@ def generate_release_groups(mb_release_group_query):
 def generate_releases(mb_release_group):
 	pass
 
-def upc_match(album, mb_release_group):
-	upc = album.get_eid('upc')
+def upc_match(ia_album, mb_release_group):
+	upc = ia_album.get_eid('upc')
 	if not upc: return None
 	for release in mb_release_group['release-list']:
 		if upc == release.get('barcode', None): return release['id']
 	return None
 
-def correlate_tracks(album, mb_release):
+def correlate_tracks(ia_album, mb_release):
 	#TODO: Create a class for this?
 	results = {}
 	accum_rating = 0
@@ -88,15 +88,15 @@ def correlate_tracks(album, mb_release):
 			mb_tracks.append(mb_track)
 
 	# TODO: Is skipping HTOA tracks always the best policy? (Probably)
-	ia_tracks = [t for t in album.tracks if t.title != "Hidden Track One Audio"]
+	ia_tracks = [t for t in ia_album.tracks if t.title != "Hidden Track One Audio"]
 
-	for track in ia_tracks:
+	for ia_track in ia_tracks:
 		
 		highest_match_rating = 0
 		matched_track = None
 		
 		for mb_track in mb_tracks:
-			match_rating = get_track_match_rating(track, mb_track)
+			match_rating = get_track_match_rating(ia_track, mb_track)
 			if match_rating > highest_match_rating:
 				highest_match_rating = match_rating
 				matched_track = mb_track
@@ -106,16 +106,16 @@ def correlate_tracks(album, mb_release):
 			accum_rating += highest_match_rating
 			mb_tracks.remove(matched_track)
 			#print(matched_track['recording']['id'])
-			results[track.name] = matched_track['recording']['id']
+			results[ia_track.id] = matched_track['recording']['id']
 
 	norm_rating = accum_rating/len(ia_tracks)
 	return norm_rating, results
 
-def get_track_match_rating(track, mb_track):
+def get_track_match_rating(ia_track, mb_track):
 	mb_recording = mb_track['recording']
 	#TODO: Weighting?
-	rating = fuzz.token_sort_ratio(track.title, mb_recording['title'])/100
-	rating *= get_track_duration_distance(track, mb_track)
+	rating = fuzz.token_sort_ratio(ia_track.title, mb_recording['title'])/100
+	rating *= get_track_duration_distance(ia_track, mb_track)
 	# TODO: Consider tracklist position. A musicbrainz track has two fields for
 	# this, 'position' and 'number'. One probably represents the position on that
 	# particular CD/LP (relevant for multidisc albums), and the other the position
@@ -123,20 +123,16 @@ def get_track_match_rating(track, mb_track):
 	# is structured (if there is a uniform structure...)
 	return rating
 
-def get_track_duration_distance(track, mb_track):
+def get_track_duration_distance(ia_track, mb_track):
 	mb_track_duration = int(mb_track['recording']['length'])/1000
-	duration_diff = abs(track.duration - mb_track_duration)
-	return 1 - min(duration_diff/track.duration, 1)
+	duration_diff = abs(ia_track.duration - mb_track_duration)
+	return 1 - min(duration_diff/ia_track.duration, 1)
 
 
-def match_album(album, query_fmt='artist:"{artist}" AND release:"{title}"'):
-
-	#query_fmt = 'artist:"{artist}"'
-
-	query = query_fmt.format(artist = album.artist,
-							 title = album.title,
-							 #creator = album.creator
-							 )
+def match_album(ia_album, query_fmt='artist:"{artist}" AND release:"{title}"'):
+	# TODO: Support queries for albums with multiple artists
+	query = query_fmt.format(artist = ia_album.artists[0],
+							 title = ia_album.title)
 
 	r = mb.search_release_groups(query)
 
@@ -148,12 +144,12 @@ def match_album(album, query_fmt='artist:"{artist}" AND release:"{title}"'):
 	# releases, allows us to cut down on API calls.
 	for mb_release_group in generate_release_groups(r):
 
-		mb_release_id = upc_match(album, mb_release_group)
+		mb_release_id = upc_match(ia_album, mb_release_group)
 
 		if mb_release_id:
 			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
 			mb_release = MusicBrainzRelease(mb_release_md)
-			rating, matches = correlate_tracks(album, mb_release_md)
+			rating, matches = correlate_tracks(ia_album, mb_release_md)
 			if rating >= 0.9: #TODO: Too strict/loose?
 				matches['full_album'] = mb_release_group['id']
 				return matches

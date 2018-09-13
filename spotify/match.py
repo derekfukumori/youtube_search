@@ -51,7 +51,6 @@ class SpotifyMatcher:
 
 		for sp_album_md in r['albums']['items']:
 			sp_album = SpotifyAlbum(self.client, sp_album_md)
-			print('sp_album', sp_album)
 
 			logger.debug('- Matching against: {}'.format(sp_album.id))
 			logger.debug('\tArtist(s): {}'.format(str.join(', ', sp_album.artists)))
