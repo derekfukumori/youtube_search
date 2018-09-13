@@ -5,14 +5,13 @@ import json
 import internetarchive as ia
 from random import choice
 from urllib.parse import unquote
-from metadata.music_metadata import *
 from exceptions import *
 from archiving.youtube_archiving import archiver_submit
 from metadata.metadata_update import update_metadata
 from metadata.util import to_list
 import redis
 import rq
-from ia.metadata import IAAlbum as IAAlbumTest
+from ia.metadata import *
 
 import youtube.match as ytmatch
 from spotify.match import SpotifyMatcher
@@ -36,19 +35,19 @@ def insert_matches(main, sub, file_source, item_source):
         else:
             main[t][file_source] = sub[t]
 
-def get_existing_matches(album):
-    m = {t.name:{} for t in album.tracks}
-    for src in ['spotify:album', 'youtube']:
-        match = album.get_eid(src)
+def get_existing_matches(ia_album):
+    m = {t.id:{} for t in ia_album.tracks}
+    for src in ['spotify:album', 'youtube', 'mb_releasegroup_id']:
+        match = ia_album.get_eid(src)
         if match:
             if not 'full_album' in m:
                 m['full_album'] = {}
             m['full_album'][src] = match
-    for t in album.tracks:
-        for src in ['spotify:track', 'youtube']:
+    for t in ia_album.tracks:
+        for src in ['spotify:track', 'youtube', 'mb_recording_id']:
             match = t.get_eid(src)
             if match:
-                m[t.name][src] = match
+                m[t.id][src] = match
     return m
 
 def merge_dicts(a, b, path=None):
@@ -133,11 +132,7 @@ if __name__=='__main__':
             iaid = entry
 
         try:
-            album = IAAlbum(iaid)
-            album_test = IAAlbumTest(iaid)
-            print(album_test)
-            for t in album_test.tracks:
-                print(t.download(IA_DL_DIR))
+            ia_album = IAAlbum(iaid)
         except MetadataException:
             logger.error('{}: Unable to process item metadata'.format(iaid))
             sys.exit(ExitCodes.IAMetadataError.value)
@@ -150,29 +145,29 @@ if __name__=='__main__':
 
         YOUTUBE_DL_SUBDIR = '{}/{}'.format(YOUTUBE_DL_DIR, iaid)
 
-        results[iaid] = {t.name:{} for t in album.tracks}
+        results[iaid] = {t.id:{} for t in ia_album.tracks}
 
         # Retrieve existing matches for anayltics purposes
-        existing_matches[iaid] = get_existing_matches(album)
+        existing_matches[iaid] = get_existing_matches(ia_album)
 
         # YouTube
         if args.search_youtube:
             youtube_results = {}
             if args.search_full_album:
-                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('youtube')):
-                    youtube_results = ytmatch.match_album(album, ia_dir=IA_DL_DIR, 
+                if not args.ignore_matched or (args.ignore_matched and not ia_album.get_eid('youtube')):
+                    youtube_results = ytmatch.match_album(ia_album, ia_dir=IA_DL_DIR, 
                                                           yt_dir=YOUTUBE_DL_SUBDIR,
                                                           api_key=GOOGLE_API_KEYS,
                                                           query_fmt=args.album_query_format)
             if not youtube_results:
                 if args.search_by_filename:
-                    tracks = [album.track_map[filename]]
+                    ia_tracks = [ia_album.track_map[filename]]
                 elif args.ignore_matched:
-                    tracks = [t for t in album.tracks if not t.get_eid('youtube')]
+                    ia_tracks = [t for t in ia_album.tracks if not t.get_eid('youtube')]
                 else:
-                    tracks = album.tracks
+                    ia_tracks = ia_album.tracks
 
-                youtube_results = ytmatch.match_tracks(tracks, album, ia_dir=IA_DL_DIR,
+                youtube_results = ytmatch.match_tracks(ia_tracks, ia_album, ia_dir=IA_DL_DIR,
                                                        yt_dir=YOUTUBE_DL_SUBDIR, 
                                                        api_key=GOOGLE_API_KEYS,
                                                        query_fmt=args.track_query_format)
@@ -192,7 +187,6 @@ if __name__=='__main__':
                 else:
                     archiver_submit(vids)
 
-
         # Spotify
         if args.search_spotify:
             SPOTIFY_CREDENTIALS = SpotifyClientCredentials(*config.get('ytsearch', {}).get(
@@ -201,20 +195,20 @@ if __name__=='__main__':
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
-                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('spotify:album')):
-                    spotify_results = spm.match_album(album, query_fmt=args.album_query_format)
+                if not args.ignore_matched or (args.ignore_matched and not ia_album.get_eid('spotify:album')):
+                    spotify_results = spm.match_album(ia_album, query_fmt=args.album_query_format)
             if not spotify_results:
                 if args.search_by_filename:
-                    tracks = [album.track_map[filename]]
+                    ia_tracks = [ia_album.track_map[filename]]
                 elif args.ignore_matched:
-                    tracks = [t for t in album.tracks if not t.get_eid('spotify:track')]
+                    ia_tracks = [t for t in ia_album.tracks if not t.get_eid('spotify:track')]
                 else:
-                    tracks = album.tracks
-                spotify_results = spm.match_tracks(tracks, album, query_fmt=args.track_query_format)
+                    ia_tracks = ia_album.tracks
+                spotify_results = spm.match_tracks(ia_tracks, ia_album, query_fmt=args.track_query_format)
             insert_matches(results[iaid], spotify_results, 'spotify', 'spotify')
 
         if args.search_musicbrainz:
-            musicbrainz_results = mbmatch.match_album(album)
+            musicbrainz_results = mbmatch.match_album(ia_album)
             insert_matches(results[iaid], musicbrainz_results, 'mb_recording_id', 'mb_releasegroup_id')
 
         if args.clear_audio_cache:
