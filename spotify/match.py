@@ -28,15 +28,14 @@ class SpotifyMatcher:
 		self.sp_fp_cache = {}
 		self.ia_fp_cache = {}
 
-	def match_album(self, album, query_fmt='{artist} {title}'):
-		logger.debug('- Matching album: {}'.format(album.identifier))
-		logger.debug('\tArtist: {}'.format(album.artist))
-		logger.debug('\tTitle:  {}'.format(album.title))
+	def match_album(self, ia_album, query_fmt='{artist} {title}'):
+		logger.debug('- Matching album: {}'.format(ia_album.id))
+		logger.debug('\tArtist(s): {}'.format(ia_album.artists))
+		logger.debug('\tTitle:  {}'.format(ia_album.title))
 
-		query = query_fmt.format(artist = album.artist.lower(),
-							 	 title = album.title.lower(),
-							 	 #creator = album.creator.lower()
-							 	 )
+		# TODO: Support queries for albums with multiple artists
+		query = query_fmt.format(artist = ia_album.artists[0].lower(),
+							 	 title = ia_album.title.lower())
 		
 		with nostdout():
 			try:
@@ -52,6 +51,7 @@ class SpotifyMatcher:
 
 		for sp_album_md in r['albums']['items']:
 			sp_album = SpotifyAlbum(self.client, sp_album_md)
+			print('sp_album', sp_album)
 
 			logger.debug('- Matching against: {}'.format(sp_album.id))
 			logger.debug('\tArtist(s): {}'.format(str.join(', ', sp_album.artists)))
@@ -61,16 +61,17 @@ class SpotifyMatcher:
 
 			# This is a very imperfect method of preventing singles from matching
 			# against full albums. 
-			if len(album.tracks) == 1 and len(sp_album.tracks) > 1:
+			if len(ia_album.tracks) == 1 and len(sp_album.tracks) > 1:
 				continue
 
 			sp_tracks = sp_album.tracks
+			# print(sp_album, sp_album.tracks)
 
 			# To determine a full album match, every track in the item must have
 			# a successful fingerprint match.
-			for ia_track in album.tracks:
-				logger.debug('\t- Matching track: {}'.format(ia_track.name))
-				logger.debug('\t\tArtist: {}'.format(ia_track.artist))
+			for ia_track in ia_album.tracks:
+				logger.debug('\t- Matching track: {}'.format(ia_track.id))
+				logger.debug('\t\tArtist(s): {}'.format(ia_track.artists))
 				logger.debug('\t\tTitle:  {}'.format(ia_track.title))
 
 				# TODO: Move fingerprinting into IATrack object?
@@ -86,7 +87,7 @@ class SpotifyMatcher:
 						# Don't take these tracks into account when determining
 						# an album match.
 						logger.warning('Warning: file {}/{} contains invalid audio, skipping.'.format(
-										ia_track.parent_album.identifier, ia_track.name))
+										ia_track.parent_album.id, ia_track.id))
 						continue
 
 				# Cull the comparison set by duration range
@@ -104,7 +105,7 @@ class SpotifyMatcher:
 				logger.debug('\t\tTrack match successful')
 
 				sp_tracks.remove(matched_track)
-				matches[ia_track.name] = 'track:{}'.format(matched_track.id)
+				matches[ia_track.id] = 'track:{}'.format(matched_track.id)
 			else:
 				logger.debug('\tAlbum match sucessful')
 				results = {'full_album': 'album:{}'.format(sp_album.id)}
@@ -113,17 +114,17 @@ class SpotifyMatcher:
 			logger.debug('\tAlbum match failed')
 		return {}
 
-	def match_tracks(self, tracks, album, query_fmt='{artist} {title}'):
+	def match_tracks(self, ia_tracks, album, query_fmt='{artist} {title}'):
 		logger.debug('- Matching individual tracks')
 		results = {}
-		for ia_track in tracks:
-			logger.debug('\t- Matching track: {}'.format(ia_track.name))
-			logger.debug('\t\tArtist: {}'.format(ia_track.artist))
+		for ia_track in ia_tracks:
+			logger.debug('\t- Matching track: {}'.format(ia_track.id))
+			logger.debug('\t\tArtist(s): {}'.format(ia_track.artists))
 			logger.debug('\t\tTitle:  {}'.format(ia_track.title))
-			query = query_fmt.format(artist = ia_track.artist.lower(),
-							 	 	 title = ia_track.title.lower()
-							 	 	# creator = ia_track.creator.lower())
-							 	 	)
+
+			# TODO: Support queries for albums with multiple artists
+			query = query_fmt.format(artist = ia_track.artists[0].lower(),
+							 	 	 title = ia_track.title.lower())
 			
 			with nostdout():
 				try:
@@ -156,7 +157,7 @@ class SpotifyMatcher:
 			matched_track = self.match_against(query_fp, query_tracks)
 
 			if matched_track:
-				results[ia_track.name] = 'track:{}'.format(matched_track.id)
+				results[ia_track.id] = 'track:{}'.format(matched_track.id)
 		return results
 
 	def match_against(self, query_fp, sp_tracks, match_threshold=0.25, short_circuit=True):

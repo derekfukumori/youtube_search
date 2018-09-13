@@ -12,6 +12,7 @@ class MusicBrainzRelease(Album):
 		# MusicBrainz recording IDs. MusicBrainz also has a 'track' structure,
 		# corresponding to a recording's position on a particular release. Despite
 		# the nomenclature, the 'track' structure isn't used here (yet).
+		self.tracks = []
 		self.populate_tracks(mb_release_md)
 	def populate_tracks(self, mb_release_md):
 		for mb_medium_md in mb_release_md['medium-list']:
