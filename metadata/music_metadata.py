@@ -91,6 +91,7 @@ class Album:
     artists = None
     title = None
     publisher = None
+    tracks = []
     #self.date = None #TODO
     def __repr__(self):
         s = {'source': self.source,
