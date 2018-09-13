@@ -12,6 +12,7 @@ from metadata.metadata_update import update_metadata
 from metadata.util import to_list
 import redis
 import rq
+from ia.metadata import IAAlbum as IAAlbumTest
 
 import youtube.match as ytmatch
 from spotify.match import SpotifyMatcher
@@ -37,14 +38,14 @@ def insert_matches(main, sub, file_source, item_source):
 
 def get_existing_matches(album):
     m = {t.name:{} for t in album.tracks}
-    for src in ['spotify', 'youtube']:
+    for src in ['spotify:album', 'youtube']:
         match = album.get_eid(src)
         if match:
             if not 'full_album' in m:
                 m['full_album'] = {}
             m['full_album'][src] = match
     for t in album.tracks:
-        for src in ['spotify', 'youtube']:
+        for src in ['spotify:track', 'youtube']:
             match = t.get_eid(src)
             if match:
                 m[t.name][src] = match
@@ -196,13 +197,13 @@ if __name__=='__main__':
             spotify_results = {}
             spm = SpotifyMatcher(SPOTIFY_CREDENTIALS, ia_dir=IA_DL_DIR)
             if args.search_full_album:
-                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('spotify')):
+                if not args.ignore_matched or (args.ignore_matched and not album.get_eid('spotify:album')):
                     spotify_results = spm.match_album(album, query_fmt=args.album_query_format)
             if not spotify_results:
                 if args.search_by_filename:
                     tracks = [album.track_map[filename]]
                 elif args.ignore_matched:
-                    tracks = [t for t in album.tracks if not t.get_eid('spotify')]
+                    tracks = [t for t in album.tracks if not t.get_eid('spotify:track')]
                 else:
                     tracks = album.tracks
                 spotify_results = spm.match_tracks(tracks, album, query_fmt=args.track_query_format)

@@ -50,6 +50,7 @@ class IAAlbum(Album):
 		if not self.tracks:
 			logger.error('{}: Unable to find valid tracks'.format(iaid))
 			raise MetadataException(iaid)
+
 	def populate_derivatives(self):
 		for ia_file_md in self.item.files:
 			filetype = filename_to_audio_filetype(ia_file_md['name'])
@@ -57,6 +58,23 @@ class IAAlbum(Album):
 			and ia_file_md['original'] in self.track_map \
 			and not splitext(ia_file_md['name'])[0].endswith('_sample'):
 				self.track_map[ia_file_md['original']].derivatives[filetype] = ia_file_md['name']
+
+	def get_eid(self, source):
+		eids = to_list(self.item.item_metadata['metadata'].get('external-identifier', []))
+		for eid in eids:
+			# eid sources can contain ':' (e.g. 'spotify:album'), so we have to compare
+			# each token except the first ('urn') and the last (the ID number)
+			if source.split(':') == eid.split(':')[1:-1]:
+				return eid.split(':')[-1]
+		return None
+
+	# def get_eid(self, eid_source):
+ #        eids = copy(self.item.item_metadata['metadata'].get('external-identifier', []))
+ #        eids = eids if isinstance(eids, list) else [eids]
+ #        for eid in eids:
+ #            if eid.startswith('urn:{}'.format(eid_source)):
+ #                return eid.split(':', 2)[-1]
+ #        return None
 
 
 
