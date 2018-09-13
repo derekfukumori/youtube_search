@@ -2,6 +2,7 @@ import internetarchive
 import logging
 import re
 import json
+import enum
 import os
 from metadata.util import to_list
 from metadata.music_metadata import Album, Track
@@ -34,9 +35,7 @@ class IAAlbum(Album):
 		self.track_map = {}
 		self.populate_tracks()
 		self.populate_derivatives()
-		for t in self.tracks:
-			# print(t, t.derivatives)
-			print(t.get_eid("spotify:track"))
+		self.duration = sum(t.duration for t in self.tracks)
 		
 	def populate_tracks(self):
 		for ia_file_md in self.item.files:

@@ -56,17 +56,16 @@ def search(query, expected_duration='any', api_key=''):
 	return results
 
 
-def search_by_track(track, query_fmt='{artist} {title}', api_key=''):
-	query = query_fmt.format(artist = track.artist, 
-							 title = track.title,
-							 creator = track.creator,
-							 album_title = track.album_title)
-	return search(query, expected_duration=get_expected_duration(track.duration),
+def search_by_track(ia_track, query_fmt='{artist} {title}', api_key=''):
+	# TODO: Support queries for albums with multiple artists
+	query = query_fmt.format(artist = ia_track.artists[0], 
+							 title  = ia_track.title)
+	return search(query, expected_duration=get_expected_duration(ia_track.duration),
 				  api_key=api_key)
 
-def search_by_album(album, query_fmt='{artist} {title}', api_key=''):
-	query = query_fmt.format(artist = album.artist, 
-							 title = album.title,
-							 creator = album.creator)
-	return search(query, expected_duration=get_expected_duration(album.duration),
+def search_by_album(ia_album, query_fmt='{artist} {title}', api_key=''):
+	# TODO: Support queries for albums with multiple artists
+	query = query_fmt.format(artist = ia_album.artists[0], 
+							 title  = ia_album.title)
+	return search(query, expected_duration=get_expected_duration(ia_album.duration),
 				  api_key=api_key)
