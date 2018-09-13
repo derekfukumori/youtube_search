@@ -21,18 +21,17 @@ class SpotifyAlbum(Album):
 	def populate_tracks(self, sp_album_md):
 		""" Given a Spotify album metadata dict (as returned by spotipy), return a
 		list of SpotifyTrack objects corresponding to the tracks on that album. """
-		sp_tracks = []
 
 		# Spotify returns at most 50 tracks at a time; for albums with more
 		# than 50 tracks, we have to iterate.
 		for _ in range(50):
 			with nostdout():
-				qr = self.spotipy_client.album_tracks(sp_album_md['id'], offset=len(sp_tracks))
+				qr = self.spotipy_client.album_tracks(sp_album_md['id'], offset=len(self.tracks))
 			for sp_track_md in qr['items']:
-				sp_tracks.append(SpotifyTrack(self.spotipy_client, sp_track_md))
-			if len(sp_tracks) == sp_album_md['total_tracks']:
+				self.tracks.append(SpotifyTrack(self.spotipy_client, sp_track_md))
+			if len(self.tracks) == sp_album_md['total_tracks']:
 				break
-			elif len(sp_tracks) > sp_album_md['total_tracks']:
+			elif len(self.tracks) > sp_album_md['total_tracks']:
 				#TODO: more meaningful exception
 				raise Exception("Unexpected number of Spotify tracks returned")
 		else:
@@ -40,10 +39,8 @@ class SpotifyAlbum(Album):
 			raise Exception('Could not retrieve Spotify tracks')
 
 		# Set the track ordering (see note in SpotifyTrack.__init__).
-		for i in range(len(sp_tracks)):
-			sp_tracks[i].ordinal = i+1
-
-		return sp_tracks
+		for i in range(len(self.tracks)):
+			self.tracks[i].ordinal = i+1
 
 # TODO: Extends Track?
 class SpotifyTrack(Track):
