@@ -63,8 +63,7 @@ class SpotifyMatcher:
 			if len(ia_album.tracks) == 1 and len(sp_album.tracks) > 1:
 				continue
 
-			sp_tracks = sp_album.tracks
-			# print(sp_album, sp_album.tracks)
+			sp_tracks = list(sp_album.tracks) # Shallow copy
 
 			# To determine a full album match, every track in the item must have
 			# a successful fingerprint match.
