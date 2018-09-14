@@ -32,7 +32,7 @@ class IAAlbum(Album):
 		self.artists = to_list(self.metadata.get('artist', self.metadata.get('creator', None)))
 		self.title = self.metadata['title'] # This works for ACDC, but won't for what.cd
 		self.publishers = to_list(self.metadata.get('publisher', []))
-		self.catalog_numbers = to_list(self.metadata.get('catalog-number', []))
+		self.catalog_numbers = to_list(self.metadata.get('publisher-catalog-number', []))
 		self.date = self.metadata.get('date', None)
 		self.tracks = []
 		self.track_map = {}

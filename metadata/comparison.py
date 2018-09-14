@@ -3,8 +3,8 @@ from fuzzywuzzy import fuzz
 DEFAULT_ALBUM_WEIGHTS = {'artists':         1.0,
 						 'title':           1.0,
 						 'date':            0.0,
-						 'publishers':      0.0,
-						 'catalog_numbers': 0.0,
+						 'publishers':      1.0,
+						 'catalog_numbers': 1.0,
 						 'tracks':          1.0,
 						 # TODO: Country? Useful for musicbrainz, useless for Spotify
 						 # TODO: Format? Useful for musicbrainz, useless for Spotify
@@ -28,7 +28,8 @@ def match_album(album_a, album_b, album_weights=DEFAULT_ALBUM_WEIGHTS, track_wei
 	#track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b)
 	ratings = {'artists': get_artists_match_rating(album_a, album_b),
 			   'title': get_string_match_rating(album_a.title, album_b.title),
-			   'publisher': get_list_match_rating(album_a.publishers, album_b.publishers),
+			   'publishers': get_list_match_rating(album_a.publishers, album_b.publishers),
+			   'catalog_numbers': get_list_match_rating(album_a.catalog_numbers, album_b.catalog_numbers),
 			   'tracks': track_correlation_rating
 			  }
 	return get_weighted_match_rating(ratings, album_weights), track_matches
