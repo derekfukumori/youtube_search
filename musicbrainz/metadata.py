@@ -7,7 +7,7 @@ def get_artists(mb_md):
 	return [a['artist']['name'] for a in mb_md['artist-credit'] if not isinstance(a, str)]
 
 # TODO: Return catalog number as well?
-def get_publisher(mb_release_md):
+def get_publishers(mb_release_md):
 	# TODO: What are the cases for more than one publisher, and are they useful/important?
 	for mb_label_md in mb_release_md.get('label-info-list', []):
 		if 'label' in mb_label_md:
@@ -20,8 +20,10 @@ class MusicBrainzRelease(Album):
 		self.id = mb_release_md['id']
 		self.artists = get_artists(mb_release_md)
 		self.title = mb_release_md['title']
-		self.publisher = get_publisher(mb_release_md)
 		self.date = mb_release_md.get('date', None)
+		self.publishers = []
+		self.catalog_numbers = []
+		self.populate_publishers_and_catalog_numbers(mb_release_md)
 		# NB: This is a list of MusicBrainzRecording objects, whose IDs are
 		# MusicBrainz recording IDs. MusicBrainz also has a 'track' structure,
 		# corresponding to a recording's position on a particular release. Despite
@@ -34,7 +36,12 @@ class MusicBrainzRelease(Album):
 				self.tracks.append(MusicBrainzRecording(mb_track_md['recording']))
 		for i in range(len(self.tracks)):
 			self.tracks[i].ordinal = i+1
-
+	def populate_publishers_and_catalog_numbers(self, mb_release_md):
+		for mb_label_info_md in mb_release_md.get('label-info-list', []):
+			if 'label' in mb_label_info_md:
+				self.publishers.append(mb_label_info_md['label']['name'])
+			if 'catalog-number' in mb_label_info_md:
+				self.catalog_numbers.append(mb_label_info_md['catalog-number'])
 
 class MusicBrainzRecording(Track):
 	def __init__(self, mb_recording_md):

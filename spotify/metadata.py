@@ -14,7 +14,8 @@ class SpotifyAlbum(Album):
 		self.id = sp_album_md.get('id', None)
 		self.artists = get_artists(sp_album_md)
 		self.title = sp_album_md.get('name', None)
-		self.publisher = sp_album_md.get('label', None)
+		self.publishers = to_list(sp_album_md.get('label', []))
+		self.catalog_numbers = [] # TODO: Does Spotify ever list the catalog number?
 		self.date = sp_album_md.get('release_date', None)
 		self.tracks = []
 		self.populate_tracks(sp_album_md)

@@ -5,8 +5,9 @@ class Album:
     id = None
     artists = None
     title = None
-    publisher = None
     date = None
+    publishers = []
+    catalog_numbers = []
     tracks = []
     #self.date = None #TODO
     def __repr__(self):
@@ -14,7 +15,9 @@ class Album:
              'id': self.id,
              'artists': self.artists,
              'title': self.title,
-             'publisher': self.publisher
+             'date': self.date,
+             'publishers': self.publishers,
+             'catalog_numbers': self.catalog_numbers
             }
         return json.dumps(s)
 

@@ -1,11 +1,11 @@
 from fuzzywuzzy import fuzz
 
-DEFAULT_ALBUM_WEIGHTS = {'artists':   1.0,
-						 'title':     1.0,
-						 'publisher': 1.0,
-						 'tracks':    1.0,
-						 # TODO: Date
-						 # TODO: Catalog Number? Useful for musicbrainz, useless for Spotify
+DEFAULT_ALBUM_WEIGHTS = {'artists':         1.0,
+						 'title':           1.0,
+						 'date':            0.0,
+						 'publishers':      0.0,
+						 'catalog_numbers': 0.0,
+						 'tracks':          1.0,
 						 # TODO: Country? Useful for musicbrainz, useless for Spotify
 						 # TODO: Format? Useful for musicbrainz, useless for Spotify
 						}
@@ -27,23 +27,41 @@ def match_album(album_a, album_b, album_weights=DEFAULT_ALBUM_WEIGHTS, track_wei
 	track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b, track_weights)
 	#track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b)
 	ratings = {'artists': get_artists_match_rating(album_a, album_b),
-			   'title': get_token_match_rating(album_a.title, album_b.title),
-			   'publisher': get_token_match_rating(album_a.publisher, album_b.publisher),
+			   'title': get_string_match_rating(album_a.title, album_b.title),
+			   'publisher': get_list_match_rating(album_a.publishers, album_b.publishers),
 			   'tracks': track_correlation_rating
 			  }
 	return get_weighted_match_rating(ratings, album_weights), track_matches
 
 def get_track_match_rating(track_a, track_b, track_weights=DEFAULT_TRACK_WEIGHTS):
 	ratings = {'artists': get_artists_match_rating(track_a, track_b),
-			   'title': get_token_match_rating(track_a.title, track_b.title),
+			   'title': get_string_match_rating(track_a.title, track_b.title),
 			   'duration': get_track_duration_distance(track_a, track_b),
 			   #TODO: Ordinal
 			  }
 	return get_weighted_match_rating(ratings, track_weights)
 
-def get_token_match_rating(field_a, field_b):
-	if field_a == None or field_b == None: return 0
-	return fuzz.token_sort_ratio(field_a, field_b)/100
+def get_string_match_rating(str_a, str_b):
+	if not str_a or not str_b: return 0
+	return fuzz.token_sort_ratio(str_a, str_b)/100
+
+def get_list_match_rating(list_a, list_b):
+	if not list_a or not list_b: return 0
+	local_list_a = list(list_a) # Shallow copy for safe list manipulation
+	local_list_b = list(list_b) # Shallow copy for safe list manipulation
+	accum_match_rating = 0
+	for item_a in local_list_a:
+		highest_match_rating = 0
+		best_match = None
+		for item_b in local_list_b:
+			match_rating = fuzz.token_sort_ratio(item_a, item_b)/100
+			if match_rating > highest_match_rating:
+				highest_match_rating = match_rating
+				best_match = item_b
+		accum_match_rating += highest_match_rating
+		local_list_b.remove(best_match)
+	norm_match_rating = accum_match_rating/min(len(list_a), len(list_b))
+	return norm_match_rating
 
 # TODO: Rename args to reference_album and query_album
 def correlate_album_tracks(album_a, album_b, track_weights=DEFAULT_TRACK_WEIGHTS):
@@ -73,7 +91,8 @@ def correlate_album_tracks(album_a, album_b, track_weights=DEFAULT_TRACK_WEIGHTS
 	norm_rating = accum_match_rating/len(album_a.tracks)
 	return norm_rating, matches
 
-
+# TODO: This is currently a copy of get_list_match_rating(). Are there cases where
+# additional processing needs to be performed for comparisons, or is this redundant?
 # TODO: This comparison might have a lot of tricky cases depending on how artists
 # are described in metadata in each respective source. This will take some manual
 # testing to determine the most common edge cases.
