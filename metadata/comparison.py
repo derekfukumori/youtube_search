@@ -2,7 +2,7 @@ from fuzzywuzzy import fuzz
 
 DEFAULT_ALBUM_WEIGHTS = {'artists':         1.0,
 						 'title':           1.0,
-						 'date':            0.0,
+						 'date':            1.0,
 						 'publishers':      1.0,
 						 'catalog_numbers': 1.0,
 						 'tracks':          1.0,
@@ -28,6 +28,7 @@ def match_album(album_a, album_b, album_weights=DEFAULT_ALBUM_WEIGHTS, track_wei
 	#track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b)
 	ratings = {'artists': get_artists_match_rating(album_a, album_b),
 			   'title': get_string_match_rating(album_a.title, album_b.title),
+			   'date': get_date_match_rating(album_a.date, album_b.date),
 			   'publishers': get_list_match_rating(album_a.publishers, album_b.publishers),
 			   'catalog_numbers': get_list_match_rating(album_a.catalog_numbers, album_b.catalog_numbers),
 			   'tracks': track_correlation_rating
@@ -41,28 +42,6 @@ def get_track_match_rating(track_a, track_b, track_weights=DEFAULT_TRACK_WEIGHTS
 			   #TODO: Ordinal
 			  }
 	return get_weighted_match_rating(ratings, track_weights)
-
-def get_string_match_rating(str_a, str_b):
-	if not str_a or not str_b: return 0
-	return fuzz.token_sort_ratio(str_a, str_b)/100
-
-def get_list_match_rating(list_a, list_b):
-	if not list_a or not list_b: return 0
-	local_list_a = list(list_a) # Shallow copy for safe list manipulation
-	local_list_b = list(list_b) # Shallow copy for safe list manipulation
-	accum_match_rating = 0
-	for item_a in local_list_a:
-		highest_match_rating = 0
-		best_match = None
-		for item_b in local_list_b:
-			match_rating = fuzz.token_sort_ratio(item_a, item_b)/100
-			if match_rating > highest_match_rating:
-				highest_match_rating = match_rating
-				best_match = item_b
-		accum_match_rating += highest_match_rating
-		local_list_b.remove(best_match)
-	norm_match_rating = accum_match_rating/min(len(list_a), len(list_b))
-	return norm_match_rating
 
 # TODO: Rename args to reference_album and query_album
 def correlate_album_tracks(album_a, album_b, track_weights=DEFAULT_TRACK_WEIGHTS):
@@ -92,6 +71,28 @@ def correlate_album_tracks(album_a, album_b, track_weights=DEFAULT_TRACK_WEIGHTS
 	norm_rating = accum_match_rating/len(album_a.tracks)
 	return norm_rating, matches
 
+def get_string_match_rating(str_a, str_b):
+	if not str_a or not str_b: return 0
+	return fuzz.token_sort_ratio(str_a, str_b)/100
+
+def get_list_match_rating(list_a, list_b):
+	if not list_a or not list_b: return 0
+	local_list_a = list(list_a) # Shallow copy for safe list manipulation
+	local_list_b = list(list_b) # Shallow copy for safe list manipulation
+	accum_match_rating = 0
+	for item_a in local_list_a:
+		highest_match_rating = 0
+		best_match = None
+		for item_b in local_list_b:
+			match_rating = fuzz.token_sort_ratio(item_a, item_b)/100
+			if match_rating > highest_match_rating:
+				highest_match_rating = match_rating
+				best_match = item_b
+		accum_match_rating += highest_match_rating
+		local_list_b.remove(best_match)
+	norm_match_rating = accum_match_rating/min(len(list_a), len(list_b))
+	return norm_match_rating
+
 # TODO: This is currently a copy of get_list_match_rating(). Are there cases where
 # additional processing needs to be performed for comparisons, or is this redundant?
 # TODO: This comparison might have a lot of tricky cases depending on how artists
@@ -113,6 +114,18 @@ def get_artists_match_rating(a, b):
 		b_artists.remove(best_match)
 	norm_match_rating = accum_match_rating/min(len(a.artists), len(b.artists))
 	return norm_match_rating
+
+# TODO: This is assuming that dates from all sources take the form YYYY-MM-DD,
+# YYYY-MM, or YYYY. As far as I can tell, this is the case for Internet Archive,
+# Spotify and MusicBrainz. Future sources will have to be converted to this format,
+# or some other scheme will need to be implemented.
+def get_date_match_rating(date_a, date_b):
+	if not date_a or not date_b: return 0
+	date_tokens_a = date_a.split('-')
+	date_tokens_b = date_b.split('-')
+	for i in range(min(len(date_tokens_a), len(date_tokens_b))):
+		if date_tokens_a[i] != date_tokens_b[i]: return 0.0
+	return 1.0
 
 # TODO: Rename this, as it returns a match-rating rather than a distance value
 def get_track_duration_distance(track_a, track_b):
