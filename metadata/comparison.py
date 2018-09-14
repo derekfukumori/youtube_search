@@ -42,6 +42,7 @@ def get_track_match_rating(track_a, track_b, track_weights=DEFAULT_TRACK_WEIGHTS
 	return get_weighted_match_rating(ratings, track_weights)
 
 def get_token_match_rating(field_a, field_b):
+	if field_a == None or field_b == None: return 0
 	return fuzz.token_sort_ratio(field_a, field_b)/100
 
 # TODO: Rename args to reference_album and query_album
