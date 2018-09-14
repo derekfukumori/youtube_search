@@ -31,7 +31,8 @@ class IAAlbum(Album):
 		self.id = self.item.identifier
 		self.artists = to_list(self.metadata.get('artist', self.metadata.get('creator', None)))
 		self.title = self.metadata['title'] # This works for ACDC, but won't for what.cd
-		self.publisher = self.metadata['publisher']
+		self.publisher = self.metadata.get('publisher', None)
+		self.date = self.metadata.get('date', None)
 		self.tracks = []
 		self.track_map = {}
 		self.populate_tracks()

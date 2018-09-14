@@ -6,6 +6,7 @@ class Album:
     artists = None
     title = None
     publisher = None
+    date = None
     tracks = []
     #self.date = None #TODO
     def __repr__(self):

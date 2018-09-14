@@ -15,6 +15,7 @@ class SpotifyAlbum(Album):
 		self.artists = get_artists(sp_album_md)
 		self.title = sp_album_md.get('name', None)
 		self.publisher = sp_album_md.get('label', None)
+		self.date = sp_album_md.get('release_date', None)
 		self.tracks = []
 		self.populate_tracks(sp_album_md)
 		

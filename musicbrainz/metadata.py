@@ -8,6 +8,7 @@ class MusicBrainzRelease(Album):
 		self.title = mb_release_md['title']
 		# TODO: What are the cases for more than one publisher, and are they useful/important?
 		self.publisher = mb_release_md['label-info-list'][0]['label']['name']
+		self.date = mb_release_md.get('date', None)
 		# NB: This is a list of MusicBrainzRecording objects, whose IDs are
 		# MusicBrainz recording IDs. MusicBrainz also has a 'track' structure,
 		# corresponding to a recording's position on a particular release. Despite
