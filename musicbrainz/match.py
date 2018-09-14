@@ -1,6 +1,7 @@
 import musicbrainzngs as mb
 from musicbrainz.metadata import *
 import json
+import metadata.comparison
 from fuzzywuzzy import fuzz
 from exceptions import *
 
@@ -149,7 +150,7 @@ def match_album(ia_album, query_fmt='artist:"{artist}" AND release:"{title}"'):
 		if mb_release_id:
 			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
 			mb_release = MusicBrainzRelease(mb_release_md)
-			rating, matches = correlate_tracks(ia_album, mb_release_md)
+			rating, matches = metadata.comparison.match_album(ia_album, mb_release)
 			if rating >= 0.9: #TODO: Too strict/loose?
 				matches['full_album'] = mb_release_group['id']
 				return matches
