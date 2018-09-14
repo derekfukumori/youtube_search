@@ -1,27 +1,51 @@
 from fuzzywuzzy import fuzz
 
-def match_album(album_a, album_b):
-	# TODO: Weighting
-	rating = get_artists_match_rating(album_a, album_b)
-	rating *= get_token_match_rating(album_a.title, album_b.title)
-	rating *= get_token_match_rating(album_a.publisher, album_b.publisher)
-	track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b)
-	rating *= track_correlation_rating
-	return rating, track_matches
+DEFAULT_ALBUM_WEIGHTS = {'artists':   1.0,
+						 'title':     1.0,
+						 'publisher': 1.0,
+						 'tracks':    1.0,
+						 # TODO: Date
+						 # TODO: Catalog Number? Useful for musicbrainz, useless for Spotify
+						 # TODO: Country? Useful for musicbrainz, useless for Spotify
+						 # TODO: Format? Useful for musicbrainz, useless for Spotify
+						}
 
-def get_track_match_rating(track_a, track_b):
-	#TODO: Weighting
-	rating = get_token_match_rating(track_a.title, track_b.title)
-	rating *= get_artists_match_rating(track_a, track_b)
-	rating *= get_track_duration_distance(track_a, track_b)
-	# TODO: Consider tracklist position.
-	return rating
+DEFAULT_TRACK_WEIGHTS = {'artists':  1.0,
+						 'title':    1.0,
+						 'duration': 1.0,
+						 'ordinal':  0.0 # TODO: Fix ordinals for multidisc IA items.
+						}
+
+def get_weighted_match_rating(match_ratings, weights):
+	accum_match_rating = 0
+	for field in match_ratings:
+		accum_match_rating += match_ratings[field] * weights.get(field, 0)
+	weights_sum = sum(list(weights.values()))
+	return accum_match_rating/weights_sum
+
+def match_album(album_a, album_b, album_weights=DEFAULT_ALBUM_WEIGHTS, track_weights=DEFAULT_TRACK_WEIGHTS):
+	track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b, track_weights)
+	#track_correlation_rating, track_matches = correlate_album_tracks(album_a, album_b)
+	ratings = {'artists': get_artists_match_rating(album_a, album_b),
+			   'title': get_token_match_rating(album_a.title, album_b.title),
+			   'publisher': get_token_match_rating(album_a.publisher, album_b.publisher),
+			   'tracks': track_correlation_rating
+			  }
+	return get_weighted_match_rating(ratings, album_weights), track_matches
+
+def get_track_match_rating(track_a, track_b, track_weights=DEFAULT_TRACK_WEIGHTS):
+	ratings = {'artists': get_artists_match_rating(track_a, track_b),
+			   'title': get_token_match_rating(track_a.title, track_b.title),
+			   'duration': get_track_duration_distance(track_a, track_b),
+			   #TODO: Ordinal
+			  }
+	return get_weighted_match_rating(ratings, track_weights)
 
 def get_token_match_rating(field_a, field_b):
 	return fuzz.token_sort_ratio(field_a, field_b)/100
 
 # TODO: Rename args to reference_album and query_album
-def correlate_album_tracks(album_a, album_b):
+def correlate_album_tracks(album_a, album_b, track_weights=DEFAULT_TRACK_WEIGHTS):
 	matches = {}
 	accum_match_rating = 0
 
@@ -34,7 +58,7 @@ def correlate_album_tracks(album_a, album_b):
 		highest_match_rating = 0
 		best_match = None
 		for track_b in tracks_b:
-			match_rating = get_track_match_rating(track_a, track_b)
+			match_rating = get_track_match_rating(track_a, track_b, track_weights)
 			if match_rating > highest_match_rating:
 				highest_match_rating = match_rating
 				best_match = track_b
@@ -69,6 +93,7 @@ def get_artists_match_rating(a, b):
 	norm_match_rating = accum_match_rating/min(len(a.artists), len(b.artists))
 	return norm_match_rating
 
+# TODO: Rename this, as it returns a match-rating rather than a distance value
 def get_track_duration_distance(track_a, track_b):
 	if track_a.duration == None or track_b.duration == None:
 		return 0

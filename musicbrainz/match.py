@@ -137,38 +137,36 @@ def match_album(ia_album, query_fmt='artist:"{artist}" AND release:"{title}"'):
 
 	r = mb.search_release_groups(query)
 
-
 	# NB: The initial release-group query returns a very limited set of information.
 	# Here, we retrieve detailed information about a given release group
 	# to attempt to determine the release corresponding to the given album.
 	# Doing this via a release group resource, rather than retrieving individual
 	# releases, allows us to cut down on API calls.
-	for mb_release_group in generate_release_groups(r):
+	for mb_releasegroup_md in generate_release_groups(r):
 
-		mb_release_id = upc_match(ia_album, mb_release_group)
+		# Attempt to match by UPC first
+		mb_release_upcmatch_id = upc_match(ia_album, mb_releasegroup_md)
 
-		if mb_release_id:
-			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
+		if mb_release_upcmatch_id:
+			mb_release_md = mb.get_release_by_id(mb_release_upcmatch_id, includes=RELEASE_INCLUDES)['release']
 			mb_release = MusicBrainzRelease(mb_release_md)
 			rating, matches = metadata.comparison.match_album(ia_album, mb_release)
 			if rating >= 0.9: #TODO: Too strict/loose?
-				matches['full_album'] = mb_release_group['id']
+				matches['full_album'] = mb_releasegroup_md['id']
 				return matches
 
-		# release_list = release_group['release-list']
+		# If no UPC match exists, iterate through releases and find the best.
+		mb_release_ids = [mbr['id'] for mbr in mb_releasegroup_md.get('release-list', [])
+						  if mbr['id'] != mb_release_upcmatch_id]
 
+		for mb_release_id in mb_release_ids:
+			mb_release_md = mb.get_release_by_id(mb_release_id, includes=RELEASE_INCLUDES)['release']
+			mb_release = MusicBrainzRelease(mb_release_md)
+			rating, matches = metadata.comparison.match_album(ia_album, mb_release)
+			if rating >= 0.95: #TODO: Too strict/loose?
+				matches['full_album'] = mb_releasegroup_md['id']
+				return matches
 
-		# for release in release_list:
-		# 	print(release)
-
-		# release_list = [mb.get_release_by_id(r['id'], includes=RELEASE_INCLUDES)['release']
-		# 				for r in release_group['release-list']]
-
-		# #print(release_list)
-
-
-		# for release in release_list:
-		# 	pass#print(json.dumps(release))
 	return {}
 
 	# i = musicbrainzngs.get_release_by_id(d['release-group-list'][0]['release-list'][0]['id'], includes=includes)
