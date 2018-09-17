@@ -54,11 +54,11 @@ class IAAlbum(Album):
 				try:
 					ia_track = IATrack(ia_file_md, self)
 				except KeyError as e:
-					logger.warning('{}: File "{}" does not contain metadata entry {}'.format(iaid, ia_file_md['name'], e))
+					logger.warning('{}: File "{}" does not contain metadata entry {}'.format(self.id, ia_file_md['name'], e))
 				self.tracks.append(ia_track)
 				self.track_map[ia_track.id] = ia_track
 		if not self.tracks:
-			logger.error('{}: Unable to find valid tracks'.format(iaid))
+			logger.error('{}: Unable to find valid tracks'.format(self.id))
 			raise MetadataException(iaid)
 
 	def populate_derivatives(self):
