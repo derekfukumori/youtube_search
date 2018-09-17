@@ -5,14 +5,14 @@ DEFAULT_ALBUM_WEIGHTS = {'artists':         1.0,
 						 'date':            1.0,
 						 'publishers':      1.0,
 						 'catalog_numbers': 1.0,
-						 'tracks':          1.0,
+						 'tracks':          3.0,
 						 # TODO: Country? Useful for musicbrainz, useless for Spotify
 						 # TODO: Format? Useful for musicbrainz, useless for Spotify
 						}
 
 DEFAULT_TRACK_WEIGHTS = {'artists':  1.0,
 						 'title':    1.0,
-						 'duration': 1.0,
+						 'duration': 1.5,
 						 'ordinal':  0.0 # TODO: Fix ordinals for multidisc IA items.
 						}
 

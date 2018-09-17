@@ -60,6 +60,8 @@ RELEASE_INCLUDES = [
 	#"instrument-rels",
 ]
 
+# TODO: Handle rate-limiting (will likely have to wrap all musicbrainz calls -- contextlib?)
+
 mb.set_useragent("Archive.org Audiophile CD Collection",
 				 "0.0.1",
 				 "derekfukumori@archive.org")
