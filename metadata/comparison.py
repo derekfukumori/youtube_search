@@ -88,8 +88,9 @@ def get_list_match_rating(list_a, list_b):
 			if match_rating > highest_match_rating:
 				highest_match_rating = match_rating
 				best_match = item_b
-		accum_match_rating += highest_match_rating
-		local_list_b.remove(best_match)
+		if best_match:
+			accum_match_rating += highest_match_rating
+			local_list_b.remove(best_match)
 	norm_match_rating = accum_match_rating/min(len(list_a), len(list_b))
 	return norm_match_rating
 
@@ -110,8 +111,9 @@ def get_artists_match_rating(a, b):
 			if match_rating > highest_match_rating:
 				highest_match_rating = match_rating
 				best_match = artist_b
-		accum_match_rating += highest_match_rating
-		b_artists.remove(best_match)
+		if best_match:
+			accum_match_rating += highest_match_rating
+			b_artists.remove(best_match)
 	norm_match_rating = accum_match_rating/min(len(a.artists), len(b.artists))
 	return norm_match_rating
 
