@@ -59,7 +59,7 @@ class IAAlbum(Album):
 				self.track_map[ia_track.id] = ia_track
 		if not self.tracks:
 			logger.error('{}: Unable to find valid tracks'.format(self.id))
-			raise MetadataException(iaid)
+			raise MetadataException(self.id)
 
 	def populate_derivatives(self):
 		for ia_file_md in self.item.files:
