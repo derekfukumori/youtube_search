@@ -1,6 +1,7 @@
 from spotify.util import nostdout
 import audiofp.echoprint as fp
 from metadata.music_metadata import Album, Track
+from metadata.util import to_list
 
 def get_artists(sp_md):
 	""" Given a Spotify track or album metadata dict (as returned by spotipy), 
