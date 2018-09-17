@@ -55,6 +55,7 @@ class IAAlbum(Album):
 					ia_track = IATrack(ia_file_md, self)
 				except KeyError as e:
 					logger.warning('{}: File "{}" does not contain metadata entry {}'.format(self.id, ia_file_md['name'], e))
+					continue
 				self.tracks.append(ia_track)
 				self.track_map[ia_track.id] = ia_track
 		if not self.tracks:
